@@ -1,0 +1,173 @@
+/* Scoped port of the SimCity proof-of-concept styles. Everything lives under .simroot. */
+
+/* Layout: a control room. Status bar on top, world map left, ops panel right, event ticker below. Stacks to one column on phones. Single dark theme by choice: this is a night-shift NOC screen. */
+.simroot{
+  --bg:#0a0e14; --bg2:#0f151e; --panel:#131b26; --panel2:#182230; --line:#24303f; --line2:#33425a;
+  --fg:#e3eaf3; --muted:#8d9bb0; --faint:#5c6a7e;
+  --accent:#3fd8c6; --accent-dim:#1f7f76; --build:#f0b443; --crit:#ff5f6e; --good:#5fd483; --warn:#f0b443; --robot:#8f9cff; --people:#f3a267;
+  --font-display:"Chakra Petch",ui-sans-serif,system-ui,sans-serif;
+  --font-body:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+.simroot *{box-sizing:border-box}
+.simroot{height:100%}
+.simroot{position:relative;height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:14px;line-height:1.45}
+.simroot button{font:inherit;color:inherit;background:var(--panel2);border:1px solid var(--line2);border-radius:4px;padding:5px 10px;cursor:pointer}
+.simroot button:hover{border-color:var(--accent-dim)}
+.simroot button:focus-visible,.simroot input:focus-visible,.simroot select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.simroot button.on{background:var(--accent-dim);border-color:var(--accent);color:#fff}
+.simroot button.primary{background:var(--accent);color:#06211e;border-color:var(--accent);font-family:var(--font-display);font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:10px 14px;width:100%}
+.simroot button.primary:disabled{opacity:.45;cursor:not-allowed}
+.simroot select,.simroot input[type=number]{font:inherit;color:var(--fg);background:var(--bg2);border:1px solid var(--line2);border-radius:4px;padding:5px 8px;width:100%}
+.simroot input[type=range]{width:100%;accent-color:var(--accent)}
+.simroot .mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.simroot .app{display:grid;grid-template-rows:auto 1fr auto;height:100%;min-height:0}
+/* top bar */
+.simroot .top{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:var(--bg2);border-bottom:1px solid var(--line)}
+.simroot .brand{display:flex;flex-direction:column;line-height:1.1}
+.simroot .brand .name{font-family:var(--font-display);font-weight:700;font-size:18px;letter-spacing:.02em;color:var(--accent)}
+.simroot .brand .tag{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.simroot .stats{display:flex;gap:18px;flex-wrap:wrap;flex:1}
+.simroot .stat{display:flex;flex-direction:column;min-width:84px}
+.simroot .stat label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.simroot .stat b{font-family:var(--font-mono);font-weight:500;font-size:15px;font-variant-numeric:tabular-nums}
+.simroot .stat b.neg{color:var(--crit)}
+.simroot .time{display:flex;gap:6px;align-items:center}
+.simroot .time .speeds{display:flex;gap:2px}
+.simroot .time .speeds button{padding:5px 8px;font-family:var(--font-mono);font-size:12px}
+.simroot #play{font-family:var(--font-display);font-weight:600;min-width:84px}
+/* main */
+.simroot .main{display:grid;grid-template-columns:1fr 420px;min-height:0}
+.simroot .mapwrap{position:relative;min-width:0;min-height:320px;background:radial-gradient(ellipse at 50% 40%,#101a27 0%,var(--bg) 70%);border-right:1px solid var(--line)}
+.simroot #map{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+.simroot .search{position:absolute;top:10px;left:max(12px,env(safe-area-inset-left,0px));right:12px;max-width:380px;z-index:4}
+.simroot .search .ico{position:absolute;left:11px;top:12px;color:var(--muted);pointer-events:none}
+.simroot .search input{width:100%;font:inherit;color:var(--fg);background:rgba(15,21,30,.92);border:1px solid var(--line2);border-radius:6px;padding:8px 12px 8px 32px;-webkit-appearance:none;appearance:none}
+.simroot .search input::placeholder{color:var(--faint)}
+.simroot .results{position:absolute;top:42px;left:0;right:0;background:rgba(15,21,30,.97);border:1px solid var(--line2);border-radius:6px;overflow:hidden;display:flex;flex-direction:column;max-height:300px;overflow-y:auto}
+.simroot .results button{border:0;border-radius:0;background:transparent;text-align:left;display:flex;flex-direction:column;gap:1px;padding:8px 12px;border-bottom:1px solid var(--line)}
+.simroot .results button:last-child{border-bottom:0}
+.simroot .results button:hover,.simroot .results button:focus-visible{background:var(--panel2);outline:none}
+.simroot .results button b{font-family:var(--font-display);font-weight:600}
+.simroot .results button span{font-size:11px;color:var(--muted)}
+.simroot .results .none{padding:10px 12px;font-size:12px;color:var(--muted)}
+.simroot .results[hidden],.simroot .tip[hidden]{display:none}
+.simroot .overlays{position:absolute;top:54px;left:max(12px,env(safe-area-inset-left,0px));display:flex;gap:4px;flex-wrap:wrap;z-index:2}
+.simroot .overlays button{font-size:11px;padding:3px 8px;background:rgba(15,21,30,.85)}
+.simroot .legend{position:absolute;bottom:10px;left:max(12px,env(safe-area-inset-left,0px));font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;z-index:2}
+.simroot .legend .bar{width:90px;height:6px;border-radius:3px;background:linear-gradient(90deg,var(--accent),#c9c05a,var(--crit))}
+.simroot .hint{position:absolute;bottom:10px;right:12px;font-size:11px;color:var(--faint);z-index:2;text-align:right}
+.simroot .tip{position:absolute;pointer-events:none;background:rgba(10,14,20,.94);border:1px solid var(--line2);border-radius:4px;padding:6px 9px;font-size:12px;z-index:3;min-width:150px}
+.simroot .tip b{font-family:var(--font-display);color:var(--accent)}
+.simroot .tip .r{display:flex;justify-content:space-between;gap:12px;color:var(--muted)}
+.simroot .tip .r span:last-child{color:var(--fg);font-family:var(--font-mono)}
+/* panel */
+.simroot .panel{display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--panel)}
+.simroot .tabs{display:flex;border-bottom:1px solid var(--line)}
+.simroot .tabs button{flex:1;border:0;border-radius:0;background:transparent;padding:10px;font-family:var(--font-display);font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:12px;color:var(--muted);border-bottom:2px solid transparent}
+.simroot .tabs button.on{color:var(--accent);border-bottom-color:var(--accent);background:transparent}
+.simroot .tabbody{overflow:auto;min-height:0;padding-block:12px;padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px))}
+.simroot .tabbody>div{display:flex;flex-direction:column;gap:14px}
+.simroot h2{font-family:var(--font-display);font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0;font-weight:600;text-wrap:balance}
+.simroot h3{font-family:var(--font-display);font-size:18px;margin:0;font-weight:700;text-wrap:balance}
+.simroot .card{background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.simroot .kv{display:grid;grid-template-columns:1fr auto;gap:3px 12px;font-size:13px}
+.simroot .kv span:nth-child(odd){color:var(--muted)}
+.simroot .kv span:nth-child(even){font-family:var(--font-mono);font-variant-numeric:tabular-nums;text-align:right}
+.simroot .kv .good{color:var(--good)}.simroot .kv .bad{color:var(--crit)}.simroot .kv .warn{color:var(--warn)}
+.simroot .pill{display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:10px;border:1px solid var(--line2);color:var(--muted)}
+.simroot .pill.hot{border-color:#8a4a2a;color:#f3a267}.simroot .pill.cold{border-color:#2a5a8a;color:#7fc4ff}.simroot .pill.temperate{border-color:#3a6a3a;color:#8fd48f}
+.simroot .pill.live{border-color:var(--accent-dim);color:var(--accent)}.simroot .pill.building{border-color:#7a5a20;color:var(--build)}.simroot .pill.block{border-color:#7a2a30;color:var(--crit)}
+.simroot .field{display:flex;flex-direction:column;gap:4px}
+.simroot .field label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between}
+.simroot .field label output{font-family:var(--font-mono);color:var(--fg);text-transform:none;letter-spacing:0}
+.simroot .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.simroot .note{font-size:12px;color:var(--muted)}
+.simroot .warnbox{font-size:12px;color:var(--warn);border-left:3px solid var(--warn);padding-left:8px}
+.simroot .critbox{font-size:12px;color:var(--crit);border-left:3px solid var(--crit);padding-left:8px}
+.simroot .gantt{display:flex;flex-direction:column;gap:4px;font-size:11px}
+.simroot .gantt .row{display:grid;grid-template-columns:118px 1fr 38px;gap:8px;align-items:center}
+.simroot .gantt .row span:first-child{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.simroot .gantt .track{position:relative;height:12px;background:var(--panel2);border-radius:2px;overflow:hidden}
+.simroot .gantt .bar{position:absolute;top:0;bottom:0;background:var(--line2);border-radius:2px}
+.simroot .gantt .fill{position:absolute;top:0;bottom:0;background:var(--build);border-radius:2px}
+.simroot .gantt .fill.done{background:var(--accent-dim)}
+.simroot .gantt .row span:last-child{font-family:var(--font-mono);text-align:right;color:var(--muted)}
+.simroot .gantt .crit .bar{outline:1px solid var(--crit)}
+.simroot .chips{display:flex;gap:6px;flex-wrap:wrap}
+.simroot .chips button{font-size:12px;padding:4px 9px}
+.simroot .siteview{position:absolute;inset:0;z-index:5;opacity:0;transition:opacity .6s ease;background:#0b1118}
+.simroot .siteview.show{opacity:1}
+.simroot .siteview[hidden]{display:none}
+.simroot #site3dhost{position:absolute;inset:0}
+.simroot #site3d{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+.simroot .css2d{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.simroot .lbl{font-family:var(--font-display);font-weight:700;font-size:12px;letter-spacing:.2em;color:#fff;padding:3px 10px 3px 8px;background:rgba(8,11,14,.78);border-left:2px solid var(--accent);pointer-events:auto;cursor:pointer;white-space:nowrap;text-transform:uppercase;transition:transform .2s,border-color .2s}
+.simroot .lbl:hover{transform:translateY(-2px);border-left-color:#fff}
+.simroot .lbl small{color:var(--muted);font:500 10px var(--font-mono);letter-spacing:.08em;margin-left:6px}
+.simroot .hudnav{position:absolute;bottom:44px;left:50%;transform:translateX(-50%);display:flex;gap:4px;background:rgba(15,21,30,.85);padding:4px;border-radius:6px;border:1px solid var(--line2);max-width:calc(100% - 24px);flex-wrap:wrap;justify-content:center}
+.simroot .hudnav button{font-family:var(--font-display);font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase;border:0;background:transparent;white-space:nowrap}
+.simroot .hudnav button.on{background:var(--accent-dim);color:#fff}
+.simroot .hudnav kbd{font:600 10px var(--font-mono);color:var(--muted);border:1px solid var(--line2);padding:0 4px;margin-left:4px;border-radius:3px}
+.simroot .hudstage{position:absolute;left:50%;bottom:110px;transform:translate(-50%,8px);opacity:0;transition:opacity .35s,transform .35s;pointer-events:none;font-family:var(--font-display);font-weight:700;font-size:15px;letter-spacing:.25em;text-transform:uppercase;color:#fff;padding:8px 20px;background:rgba(8,11,14,.75);border-left:3px solid var(--build);white-space:nowrap;text-shadow:0 0 8px #000;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis}
+.simroot .hudstage.on{opacity:1;transform:translate(-50%,0)}
+.simroot .hudkeys{position:absolute;bottom:10px;right:12px;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;font-family:var(--font-display);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:rgba(15,21,30,.7);padding:5px 10px;border-radius:4px;max-width:60%}
+.simroot .hudkeys b{font:700 10px var(--font-mono);color:var(--fg);border:1px solid var(--line2);padding:0 4px;margin-right:4px;border-radius:3px}
+.simroot .hudcard small.credit{font-size:9px;color:var(--faint);font-family:var(--font-body);margin-top:2px}
+@media (max-width:900px){.simroot .hudkeys{display:none}.simroot .hudnav{bottom:40px}.simroot .hudstage{bottom:118px;font-size:13px}}
+.simroot #siteTip.tip{z-index:6}
+.simroot.thermal .hudcard{border-color:var(--build)}
+.simroot .hud{position:absolute;inset:0;pointer-events:none}
+.simroot .hud>*{pointer-events:auto}
+.simroot #backGlobe{position:absolute;top:10px;left:max(12px,env(safe-area-inset-left,0px));background:rgba(15,21,30,.9);font-family:var(--font-display);font-weight:600}
+.simroot .hudcard{position:absolute;top:10px;right:12px;background:rgba(15,21,30,.9);border:1px solid var(--line2);border-radius:6px;padding:6px 10px;display:flex;flex-direction:column;max-width:60%;min-width:0}
+.simroot .hudcard b{font-family:var(--font-display);color:var(--accent);font-size:15px}
+.simroot .hudcard span{font-size:12px;color:var(--muted);font-family:var(--font-mono)}
+.simroot .hudcounts{position:absolute;bottom:10px;left:max(12px,env(safe-area-inset-left,0px));display:flex;gap:14px;font-size:12px;font-family:var(--font-mono);background:rgba(15,21,30,.7);padding:4px 8px;border-radius:4px}
+.simroot .hudcounts .p{color:var(--people)}.simroot .hudcounts .r{color:var(--robot)}
+.simroot .hudhint{position:absolute;bottom:10px;right:12px;font-size:11px;color:var(--faint)}
+.simroot .modes{display:flex;gap:4px}
+.simroot .modes button{flex:1;font-size:12px}
+.simroot .score{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.simroot .score .s{background:var(--panel2);border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:2px}
+.simroot .score .s label{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.simroot .score .s b{font-family:var(--font-mono);font-weight:500;font-size:18px}
+.simroot .score .s.on{outline:1px solid var(--accent)}
+.simroot .rank{display:flex;flex-direction:column;gap:3px;font-size:12px}
+.simroot .rank .row{display:grid;grid-template-columns:1fr 60px 60px;gap:8px}
+.simroot .rank .row span:not(:first-child){font-family:var(--font-mono);text-align:right}
+.simroot .rank .head span{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+/* log */
+.simroot .log{background:var(--bg2);border-top:1px solid var(--line);padding-block:6px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));font-size:12px;height:64px;overflow:auto}
+.simroot .log div{display:flex;gap:10px;color:var(--muted)}
+.simroot .log div b{font-family:var(--font-mono);font-weight:400;color:var(--faint);white-space:nowrap}
+.simroot .log div.ev{color:var(--fg)}.simroot .log div.bad{color:var(--crit)}.simroot .log div.good{color:var(--good)}
+@media (max-width:900px){
+  .simroot .main{grid-template-columns:1fr;grid-template-rows:360px auto;overflow:auto}
+  .simroot .mapwrap{border-right:0;border-bottom:1px solid var(--line)}
+  .simroot .app{height:auto;min-height:100%}
+  .simroot .tabbody{overflow:visible}
+  .simroot .panel{min-height:0}
+  .simroot .log{height:auto;max-height:120px}
+}
+@media (prefers-reduced-motion:reduce){ .simroot .pulse{animation:none} }
+
+.simroot .gpumix{display:grid;gap:4px;margin-top:2px}
+.simroot .gpumix label{display:grid;grid-template-columns:110px 1fr;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
+.simroot .gpumix label small{display:block;font-size:9px;color:var(--faint)}
+.simroot .gpumix input:disabled{opacity:.35}
+@media (max-width:640px){
+  .simroot .top{gap:10px}
+  .simroot .stats{flex:1 1 100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}
+  .simroot .stat label{letter-spacing:.06em;line-height:1.25}
+  .simroot .stat{min-width:0}
+  .simroot .stat b{font-size:13px}
+  .simroot .search{max-width:none;right:12px}
+  .simroot .overlays{top:54px}
+}
+
+.simroot .stress{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;margin-left:8px;white-space:nowrap;cursor:pointer}
+.simroot .stress input{accent-color:var(--build)}
+.simroot #pfTable .table{font-size:12px}
+.simroot #pfTable .table td,.simroot #pfTable .table th{padding:6px 8px}

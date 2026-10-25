@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SiteStatus {
+  OPERATIONAL
+  CONSTRUCTION
+  PLANNED
+  PROPOSED
+}
+
+enum RunKind {
+  DISCOVER
+  ENRICH
+  ASSESS
+}
+
+enum RunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum Verdict {
+  GO
+  CONDITIONAL
+  NO_GO
+}
+
+/// A data center that exists, is being built, or has been announced.
+model Site {
+  id             String      @id @default(cuid())
+  name           String
+  operator       String?
+  country        String
+  region         String?
+  city           String?
+  lat            Float
+  lon            Float
+  status         SiteStatus
+  capacityMw     Float?      // facility power at full build-out
+  itMw           Float?      // IT load if reported separately
+  announcedAt    DateTime?
+  expectedOnline String?     // free text such as "2027 H2"
+  energyNotes    String?
+  description    String?
+  confidence     Float       @default(0.5) // 0..1, how well sourced
+  sources        Json        @default("[]") // [{title,url,publisher,date}]
+  curated        Boolean     @default(false) // seeded by hand rather than discovered
+  discoveredBy   String?     // run id
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  profile     RegionProfile?
+  scenarios   Scenario[]
+}
+
+/// Local factors that drive the estimate for one site. Priors come from a
+/// country table; the enrich agent overwrites them with sourced values.
+model RegionProfile {
+  id             String   @id @default(cuid())
+  siteId         String   @unique
+  site           Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  powerPriceKwh  Float    // USD per kWh, industrial
+  gridCarbonG    Float    // gCO2 per kWh
+  gridLeadMonths Float    // months to interconnect at this scale
+  gridHeadroomMw Float    // spare capacity before prices climb
+  gridReliability Float   // 0..1
+  laborPool      Int      // hireable construction trades within commuting range
+  wageUsdH       Float
+  landIndex      Float    // 1.0 = US rural baseline
+  sentiment      Float    // 0..100 community acceptance baseline
+  climate        String   // hot | temperate | cold
+  waterStress    String   // low | medium | high
+  solar          Float    // 0..1 resource quality
+  wind           Float
+  geothermal     Boolean  @default(false)
+  flareGas       Boolean  @default(false)
+  populationNear Int?     // people within 5 km, for nuisance weighting
+  sources        Json     @default("[]")
+  enrichedBy     String?  // run id, null when priors only
+  updatedAt      DateTime @updatedAt
+}
+
+/// One configuration of a site: hardware spec plus energy mix, with the
+/// estimate the engine produced for it.
+model Scenario {
+  id         String   @id @default(cuid())
+  siteId     String
+  site       Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  name       String
+  spec       Json     // {itMw, gpu, density, crew, robots}
+  energyMix  Json     // {grid, gas, solar, wind, nuclear, geothermal, hydro} shares summing to 1
+  estimate   Json     // EstimateResult
+  isBaseline Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  assessments Assessment[]
+}
+
+/// The advisory verdict for a scenario, deterministic gate plus model narrative.
+model Assessment {
+  id          String   @id @default(cuid())
+  scenarioId  String
+  scenario    Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  verdict     Verdict
+  score       Float    // 0..100 composite
+  economic    Float    // 0..100
+  environment Float    // 0..100 (higher is better)
+  community   Float    // 0..100
+  rationale   String
+  conditions  Json     @default("[]")   // strings
+  risks       Json     @default("[]")   // strings
+  alternatives Json    @default("[]")   // [{name, energyMix, score, verdict}]
+  personas    Json     @default("{}")   // {executive, policy, investor}
+  plan        Json?                     // BuildPlan plus the estimate of that plan
+  model       String
+  runId       String?
+  createdAt   DateTime @default(now())
+}
+
+/// Audit trail for every agent invocation.
+model AgentRun {
+  id         String    @id @default(cuid())
+  kind       RunKind
+  status     RunStatus @default(QUEUED)
+  input      Json
+  output     Json?
+  log        String    @default("")
+  error      String?
+  model      String?
+  tokensIn   Int?
+  tokensOut  Int?
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+}

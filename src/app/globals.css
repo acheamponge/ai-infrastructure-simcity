@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+/* One dark control-room palette for the whole product, shared with the simulation. */
+@theme {
+  --color-navy: #0f151e;
+  --color-navy-2: #182230;
+  --color-ink: #e3eaf3;
+  --color-slate-2: #8d9bb0;
+  --color-faint: #5c6a7e;
+  --color-line: #24303f;
+  --color-line-2: #33425a;
+  --color-paper: #0a0e14;
+  --color-panel: #131b26;
+  --color-panel-2: #182230;
+  --color-accent: #3fd8c6;
+  --color-accent-dim: #1f7f76;
+  --color-teal: #5fe0cf;
+  --color-amber: #f0b443;
+  --color-crimson: #ff5f6e;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Chakra Petch", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+html, body { height: 100%; }
+html { color-scheme: dark; }
+body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { letter-spacing: -0.01em; font-family: var(--font-display); }
+.num { font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+.card { background: var(--color-panel); border: 1px solid var(--color-line); border-radius: 8px; }
+.eyebrow { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--color-slate-2); font-weight: 600; font-family: var(--font-display); }
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th { text-align: left; font-weight: 600; color: var(--color-slate-2); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 8px 10px; border-bottom: 1px solid var(--color-line); white-space: nowrap; font-family: var(--font-display); }
+.table td { padding: 9px 10px; border-bottom: 1px solid var(--color-line); vertical-align: top; }
+.table tr:last-child td { border-bottom: 0; }
+.table td.r, .table th.r { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+.table tbody tr:hover { background: rgba(63, 216, 198, .04); }
+.btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; padding: 7px 12px; font-size: 13px; font-weight: 600; border: 1px solid var(--color-line-2); background: var(--color-panel-2); color: var(--color-ink); cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--color-accent-dim); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: var(--color-accent); color: #06211e; border-color: var(--color-accent); font-family: var(--font-display); letter-spacing: .04em; text-transform: uppercase; }
+.btn-primary:hover { background: #5fe0cf; border-color: #5fe0cf; }
+.pill { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--color-line-2); color: var(--color-slate-2); white-space: nowrap; }
+.pill-go { background: rgba(95, 212, 131, .12); color: #7ee2a0; border-color: rgba(95, 212, 131, .45); }
+.pill-cond { background: rgba(240, 180, 67, .12); color: #f3c66b; border-color: rgba(240, 180, 67, .45); }
+.pill-nogo { background: rgba(255, 95, 110, .12); color: #ff8a95; border-color: rgba(255, 95, 110, .45); }
+.pill-op { background: rgba(127, 196, 255, .12); color: #9fd3ff; border-color: rgba(127, 196, 255, .4); }
+.pill-con { background: rgba(240, 180, 67, .12); color: #f3c66b; border-color: rgba(240, 180, 67, .4); }
+.pill-plan { background: rgba(63, 216, 198, .12); color: #7fe6d9; border-color: rgba(63, 216, 198, .4); }
+.pill-prop { background: rgba(141, 155, 176, .12); color: #b3bfcf; border-color: rgba(141, 155, 176, .4); }
+input[type=range] { accent-color: var(--color-accent); width: 100%; }
+input[type=text], input[type=number], input[type=search], select, textarea { border: 1px solid var(--color-line-2); border-radius: 6px; padding: 7px 9px; font-size: 13px; background: var(--color-paper); color: var(--color-ink); width: 100%; }
+input::placeholder { color: var(--color-faint); }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--color-accent-dim); outline-offset: 1px; }
+input[type=checkbox] { accent-color: var(--color-accent); }
+a { color: inherit; }
+.leaflet-container { font-family: inherit; background: #0a0e14; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--color-panel); color: var(--color-ink); box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+.leaflet-control-zoom a { background: var(--color-panel-2); color: var(--color-ink); border-color: var(--color-line-2); }
+.leaflet-control-attribution { background: rgba(10,14,20,.7) !important; color: var(--color-faint) !important; }
+.leaflet-control-attribution a { color: var(--color-slate-2) !important; }
+.recharts-cartesian-axis-tick-value { fill: var(--color-slate-2); }
+.recharts-default-tooltip { background: var(--color-panel) !important; border-color: var(--color-line-2) !important; color: var(--color-ink) !important; }
+.recharts-tooltip-item, .recharts-tooltip-label { color: var(--color-ink) !important; }
+.recharts-legend-item-text { color: var(--color-slate-2) !important; }
+@media (max-width: 640px) {
+  .table { font-size: 12px; }
+  .table th, .table td { padding: 7px 8px; }
+}
