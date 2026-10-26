@@ -101,3 +101,7 @@ investment advice.
 npx tsx scripts/reestimate.ts   # recompute every scenario after a model change
 npx tsx scripts/assess-all.ts   # run the advisor on every baseline
 ```
+
+## Deploying
+
+See [DEPLOY.md](DEPLOY.md) for hosting on Vercel with a hosted Postgres.
