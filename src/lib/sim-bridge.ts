@@ -22,7 +22,7 @@ export function toSimCfg(spec: SiteSpec, mix: EnergyMix, flareAvailable: boolean
     cfg: {
       energy: dominantSimEnergy(mix, flareAvailable),
       gpu: spec.gpu === "next" ? "gb300" : spec.gpu,
-      gpuMix: { h100: 0, b200: 0, gb300: 0, next: 0, [spec.gpu === "next" ? "gb300" : spec.gpu]: 100 },
+      gpuMix: { h100: 0, h200: 0, b200: 0, gb200: 0, gb300: 0, next: 0, [spec.gpu === "next" ? "gb300" : spec.gpu]: 100 },
       dens: spec.densityKw,
       racks,
       crew: round50(spec.crew / Math.min(phases, 3), 100, 2500),

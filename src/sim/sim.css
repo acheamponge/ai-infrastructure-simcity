@@ -154,7 +154,7 @@
 @media (prefers-reduced-motion:reduce){ .simroot .pulse{animation:none} }
 
 .simroot .gpumix{display:grid;gap:4px;margin-top:2px}
-.simroot .gpumix label{display:grid;grid-template-columns:110px 1fr;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
+.simroot .gpumix label{display:grid;grid-template-columns:118px 1fr;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
 .simroot .gpumix label small{display:block;font-size:9px;color:var(--faint)}
 .simroot .gpumix input:disabled{opacity:.35}
 @media (max-width:640px){
@@ -171,3 +171,23 @@
 .simroot .stress input{accent-color:var(--build)}
 .simroot #pfTable .table{font-size:12px}
 .simroot #pfTable .table td,.simroot #pfTable .table th{padding:6px 8px}
+
+/* incidents panel in the site view */
+.simroot .hudinc{position:absolute;top:48px;left:max(12px,env(safe-area-inset-left,0px));width:min(330px,46%);background:rgba(15,21,30,.92);border:1px solid var(--line2);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:6px;font-size:11px;max-height:46%;overflow:auto}
+.simroot .hudinc.off #incSim button{opacity:.4;pointer-events:none}
+.simroot .hudinc-h{display:flex;flex-direction:column;gap:4px}
+.simroot .hudinc-h b{font-family:var(--font-display);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.simroot #incSim{display:flex;flex-wrap:wrap;gap:4px}
+.simroot #incSim button,.simroot .inc button{font-size:10px;padding:3px 7px;border:1px solid var(--line2);background:rgba(255,255,255,.04);border-radius:4px;font-family:var(--font-mono);color:var(--fg);cursor:pointer}
+.simroot #incSim button:hover{border-color:var(--crit);color:#fff}
+.simroot .inc{border-left:2px solid var(--crit);padding:4px 6px;background:rgba(255,95,110,.07);display:flex;flex-direction:column;gap:3px}
+.simroot .inc.on{border-left-color:var(--build);background:rgba(240,180,67,.07)}
+.simroot .inc-h{display:flex;justify-content:space-between;gap:6px;align-items:center}
+.simroot .inc-h b{font-family:var(--font-display);font-size:11px;color:#fff;cursor:pointer}
+.simroot .inc-h b:hover{color:var(--accent)}
+.simroot .inc span{color:var(--muted);font-family:var(--font-mono);font-size:10px}
+.simroot .inc .bar{height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
+.simroot .inc .bar i{display:block;height:100%;background:var(--build);transition:width .3s}
+.simroot .inc button{color:var(--build);border-color:var(--build)}
+.simroot .hudinc .none{color:var(--faint);font-family:var(--font-mono);font-size:10px}
+@media (max-width:900px){.simroot .hudinc{top:46px;width:min(250px,52%)}.simroot .hudcard{max-width:46%}}

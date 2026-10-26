@@ -57,13 +57,74 @@ const ENERGY={
  geo:{name:'Geothermal',capex:r=>r.geo?5:12,lead:r=>r.geo?14:26,opex:r=>0.024,carbon:r=>40,cap:r=>0.95,note:'Excellent where the ground is hot. Ruinous where it is not.'},
  flare:{name:'Flared gas capture',capex:r=>1.0,lead:r=>6,opex:r=>0.012,carbon:r=>380,cap:r=>0.88,note:'Burns gas that was being flared anyway. Only works in producing basins.'},
 };
+// form: hgx = 8-GPU HGX nodes in a standard rack · nvl = rack-scale NVL72 (18 compute trays + 9 NVLink switch trays, liquid only)
 const GPUS={
- h100:{name:'H100',w:700,cost:25000,perf:1,rate:2.0},
- b200:{name:'B200',w:1000,cost:38000,perf:2.2,rate:3.2},
- gb300:{name:'GB300',w:1400,cost:55000,perf:3.5,rate:4.5},
- next:{name:'Next-gen (unlocks 2028)',w:1800,cost:75000,perf:5.5,rate:6.5,locked:true},
+ h100:{name:'H100',w:700,cost:25000,perf:1,rate:2.0,form:'hgx',node:'HGX H100',hbm:'80 GB HBM3',u:6},
+ h200:{name:'H200',w:700,cost:30000,perf:1.35,rate:2.4,form:'hgx',node:'HGX H200',hbm:'141 GB HBM3e',u:6},
+ b200:{name:'B200',w:1000,cost:38000,perf:2.2,rate:3.2,form:'hgx',node:'HGX B200',hbm:'180 GB HBM3e',u:10},
+ gb200:{name:'GB200',w:1200,cost:45000,perf:2.8,rate:3.8,form:'nvl',node:'GB200 NVL72',hbm:'186 GB HBM3e'},
+ gb300:{name:'GB300',w:1400,cost:55000,perf:3.5,rate:4.5,form:'nvl',node:'GB300 NVL72',hbm:'288 GB HBM3e'},
+ next:{name:'Rubin (unlocks 2028)',w:1800,cost:75000,perf:5.5,rate:6.5,locked:true,form:'nvl',node:'Rubin NVL144',hbm:'288 GB HBM4'},
 };
+// GPUs per rack: HGX nodes fill the power budget; NVL racks ship as 72 (full), 36 (half) or an air-cooled 16-GPU partial
+function perRackFor(k,dens){const G=GPUS[k];if(G.form==='nvl')return dens>=130?72:dens>=80?36:16;return Math.floor(dens*1000*0.7/G.w)}
 const DENS={40:{cool:'air',pue:1.45},80:{cool:'liquid',pue:1.18},130:{cool:'liquid',pue:1.12}};
+// ---------- incidents: things that go wrong in a live hall, and how they are fixed ----------
+// Each kind has a place (row, rack, feeder, roof), a monthly economic effect while open, repair steps the crew works
+// through, a real-time repair duration when the site is on screen, and a sim-month duration when it is not.
+const INCIDENTS={
+ leak:{name:'Coolant leak',where:'row',repairSec:32,months:2,cost:85000,
+  desc:'A manifold quick-disconnect is weeping under the row. The row is powered down until the leak is isolated and the floor is dry.',
+  steps:['Isolate the row manifold valves','Pump out and dry the floor','Replace the quick-disconnect','Pressure-test and re-energize the row']},
+ rack:{name:'Server failure',where:'rack',repairSec:20,months:1,cost:45000,
+  desc:'A node dropped off the fabric: a failed power supply or a GPU fault. The rack runs degraded until the part is swapped.',
+  steps:['Read the BMC fault log','Pull the failed node','Swap the power supply and GPU module','Re-seat and rejoin the fabric']},
+ power:{name:'Utility power loss',where:'site',repairSec:48,months:1,cost:0,
+  desc:'The utility feeder tripped. UPS batteries carry the IT load while the generators start; the site burns diesel until the feed is restored.',
+  steps:['UPS carrying the load','Generators started and synced','Utility crew on the feeder','Feed restored, generators back to standby']},
+ chiller:{name:'Chiller failure',where:'roof',repairSec:36,months:2,cost:120000,
+  desc:'A rooftop chiller tripped. Supply water warms and the racks throttle until it is reset.',
+  steps:['Confirm the trip and isolate the unit','Swap the failed compressor contactor','Restart and pull supply water back to setpoint','Lift the throttle']},
+};
+const layoutOf=racks=>{const cols=Math.min(40,Math.ceil(Math.sqrt(racks*2.2)));return {cols,rows:Math.ceil(racks/cols)}};
+function spawnIncident(f,kind,auto){
+  if(f.status!=='live')return null;
+  f.incidents=f.incidents||[];
+  if(f.incidents.some(i=>i.kind===kind))return null;
+  const I=INCIDENTS[kind],lay=layoutOf(f.cfg.racks);
+  const inc={id:++S.incSeq,kind,start:S.month,progress:0,dispatched:false,row:Math.floor(Math.random()*lay.rows),rack:Math.floor(Math.random()*f.cfg.racks),auto:!!auto};
+  f.incidents.push(inc);
+  log(`${f.name}: ${I.name.toLowerCase()}${auto?'':' (simulated)'}. ${I.desc}`,'bad');
+  renderSites();return inc;
+}
+function dispatchIncident(f,inc){if(inc.dispatched)return;inc.dispatched=true;log(`${f.name}: crew dispatched for the ${INCIDENTS[inc.kind].name.toLowerCase()}. ${INCIDENTS[inc.kind].steps.join(' → ')}.`,'ev')}
+function resolveIncident(f,inc){
+  const I=INCIDENTS[inc.kind];inc.progress=1;
+  f.repairDue=(f.repairDue||0)+I.cost;
+  f.incidents=(f.incidents||[]).filter(i=>i!==inc);
+  log(`${f.name}: ${I.name.toLowerCase()} fixed after ${Math.max(1,S.month-inc.start)} month(s)${I.cost?` · ${fmtM(I.cost)} in parts and labor`:''}.`,'good');
+  renderSites();
+}
+// monthly effect of open incidents: revenue multiplier, extra operating cost, extra CO₂
+function incidentEffects(f){
+  let rev=1,opex=0,co2=0;const lay=layoutOf(f.cfg.racks);
+  for(const inc of f.incidents||[]){
+    if(inc.kind==='leak')rev*=1-Math.min(1,lay.cols/f.cfg.racks);
+    else if(inc.kind==='rack')rev*=1-1/f.cfg.racks;
+    else if(inc.kind==='power'){const kwh=f.plan.facMW*1000*720;opex+=kwh*0.22;co2+=kwh*0.0007;rev*=0.97}
+    else if(inc.kind==='chiller')rev*=0.7;
+  }
+  return {rev,opex,co2};
+}
+// site crews respond on their own after a month; repairs then progress by month unless the 3D view is driving them in real time
+function stepIncidents(f){
+  for(const inc of [...(f.incidents||[])]){
+    if(!inc.dispatched&&S.month-inc.start>=1)dispatchIncident(f,inc);
+    if(inc.dispatched&&!inc.viewed)inc.progress=Math.min(1,inc.progress+1/INCIDENTS[inc.kind].months);
+    if(inc.progress>=1)resolveIncident(f,inc);
+  }
+}
+
 const PHASES=[['permit','Permitting'],['civil','Civil & grading'],['inter','Power interconnect'],['shell','Building shell'],['mep','Mechanical & electrical'],['racks','Racks & GPUs'],['comm','Commissioning']];
 // Portfolio preview: there is no wallet. Capital is counted as it is deployed and cash flow is reported, never gated.
 
@@ -71,10 +132,10 @@ const PHASES=[['permit','Permitting'],['civil','Civil & grading'],['inter','Powe
 let S;
 function freshState(){
   return {
-    month:0, cash:0, capital:0, opexTotal:0, speed:1, running:false, stress:false, overlay:'power',
+    month:0, cash:0, capital:0, opexTotal:0, speed:1, running:false, stress:false, overlay:'power', incSeq:0,
     sel:'txp', facilities:[], nextId:1, log:[], priceIndex:1, demand:1, co2:0, computeTotal:0, revenueTotal:0,
     regions:[...REGIONS,...(opts.realSites||[])].map(r=>({...r, base:r.sent, pros:0, laborUsed:0, moratorium:0, heat:0, builtMW:0, basePower:r.power})),
-    cfg:{energy:'grid',gpu:'b200',gpuMix:{h100:0,b200:100,gb300:0,next:0},dens:80,racks:500,crew:600,robots:0},
+    cfg:{energy:'grid',gpu:'b200',gpuMix:{h100:0,h200:0,b200:100,gb200:0,gb300:0,next:0},dens:80,racks:500,crew:600,robots:0},
     unlockedNext:false, viewFac:null,
   };
 }
@@ -91,7 +152,7 @@ function makePlan(cfg,r){
   const shares=gpuShares(cfg);
   const types=Object.keys(shares);
   const rackGpu=[];{let acc=0;const cum=types.map(k=>[k,(acc+=shares[k])]);for(let i=0;i<cfg.racks;i++){const u=(i+0.5)/cfg.racks;rackGpu.push((cum.find(([,c])=>u<=c)||cum[cum.length-1])[0])}}
-  const perRack=k=>Math.floor(cfg.dens*1000*0.7/GPUS[k].w);
+  const perRack=k=>perRackFor(k,cfg.dens);
   const gpus=rackGpu.reduce((a,k)=>a+perRack(k),0);
   const gpusPerRack=Math.round(gpus/Math.max(1,cfg.racks));
   const G={name:types.map(k=>`${Math.round(shares[k]*100)}% ${GPUS[k].name.replace(/ \(.*\)/,'')}`).join(' · '),
@@ -208,9 +269,16 @@ function tick(){
       let rev=p.revMo*S.priceIndex*S.demand;
       let opex=p.opexMo;
       if(r.heat>0&&r.climate==='hot'){opex+=p.powerMo*0.18}
-      if(S.stress&&f.cfg.energy==='grid'&&Math.random()>r.gridRel+0.02){rev*=0.5;log(`Grid outage in ${r.name}: ${f.name} ran at half for the month.`,'bad')}
+      if(S.stress){
+        if(f.cfg.energy==='grid'&&Math.random()>r.gridRel+0.02&&!spawnIncident(f,'power',true)){rev*=0.5;log(`Grid outage in ${r.name}: ${f.name} ran at half for the month.`,'bad')}
+        if(Math.random()<0.03)spawnIncident(f,'rack',true);
+        if(f.cfg.dens>=80&&Math.random()<0.012)spawnIncident(f,'leak',true);
+        if(r.heat>0&&Math.random()<0.06)spawnIncident(f,'chiller',true);
+      }
+      stepIncidents(f);
+      const fx=incidentEffects(f);rev*=fx.rev;opex+=fx.opex+(f.repairDue||0);f.repairDue=0;
       S.opexTotal+=opex;net+=rev-opex;
-      f.rev+=rev;f.comp+=p.perf;S.computeTotal+=p.perf;S.revenueTotal+=rev;S.co2+=p.co2Mo;f.co2=(f.co2||0)+p.co2Mo;f.pros=(f.pros||0)+p.prosOpMo;
+      f.rev+=rev;f.comp+=p.perf*fx.rev;S.computeTotal+=p.perf*fx.rev;S.revenueTotal+=rev;S.co2+=p.co2Mo+fx.co2;f.co2=(f.co2||0)+p.co2Mo+fx.co2;f.pros=(f.pros||0)+p.prosOpMo;
       r.pros+=p.prosOpMo;
       r.sent=clamp(r.sent+p.sentOpMo,0,100);
     }
@@ -224,7 +292,7 @@ function tick(){
   }
   S.priceIndex*=0.991;
   S.demand=1+0.012*S.month;
-  if(S.month===12&&!S.unlockedNext){S.unlockedNext=true;GPUS.next.locked=false;GPUS.next.name='Next-gen';for(const k of ['h100','b200','gb300'])GPUS[k].cost*=0.8;log('A new GPU generation shipped. Older parts are 20% cheaper; Next-gen is now orderable.','ev');fillSelects()}
+  if(S.month===12&&!S.unlockedNext){S.unlockedNext=true;GPUS.next.locked=false;GPUS.next.name='Rubin';for(const k in GPUS)if(k!=='next')GPUS[k].cost*=0.8;log('A new GPU generation shipped. Older parts are 20% cheaper; Rubin NVL144 is now orderable.','ev');fillSelects()}
   if(S.stress)events();
   render();
 }
@@ -275,7 +343,7 @@ function fillSelects(){
   const nx=$('gm-next');if(nx){nx.disabled=!!GPUS.next.locked;$('gm-next-note').textContent=GPUS.next.locked?'locked until 2028':'available'}
 }
 function readCfg(){
-  const gm={h100:+$('gm-h100').value,b200:+$('gm-b200').value,gb300:+$('gm-gb300').value,next:+$('gm-next').value};
+  const gm={};for(const k in GPUS)gm[k]=+$('gm-'+k).value;
   const sh=gpuShares({gpuMix:gm});const dominant=Object.keys(sh).sort((a,b)=>sh[b]-sh[a])[0];
   S.cfg={energy:$('energy').value,gpu:dominant,gpuMix:gm,dens:+$('dens').value,racks:+$('racks').value,crew:+$('crew').value,robots:0};
   $('gpuOut').value=Object.keys(sh).map(k=>`${Math.round(sh[k]*100)}% ${GPUS[k].name.replace(/ \(.*\)/,'')}`).join(' · ');
@@ -349,6 +417,7 @@ function renderSites(){
     <div class="kv">
       <span>Spec</span><span>${p.facMW.toFixed(0)} MW · ${fmtN(p.gpus)} GPUs · ${p.gpuLabel} · ${ENERGY[f.cfg.energy].name}</span>
       <span>Construction crew</span><span>${fmtN(p.people)} trades</span>
+      <span>Incidents</span><span class="${(f.incidents||[]).length?'bad':''}">${(f.incidents||[]).length?f.incidents.map(i=>INCIDENTS[i.kind].name+(i.dispatched?' (crew on it)':'')).join(', '):'none'}</span>
       <span>Spent so far</span><span>${fmtM(Object.values(f.paid).reduce((a,b)=>a+b,0)+p.laborMo*Math.min(t,total))}</span>
       <span>Revenue to date</span><span class="good">${fmtM(f.rev)}</span>
       <span>Compute delivered</span><span>${f.comp.toFixed(0)} PF-months</span>
@@ -482,7 +551,7 @@ document.addEventListener('pointerdown',e=>{if(!e.target.closest('.search'))res.
 const V={mode:'globe',t:0};
 let T=null;
 let Site3D=null;
-function ensureSite(f){if(!Site3D)Site3D=initSite3D({getS:()=>S,schedule,PHASES,GPUS,fmtN,REDUCE});Site3D.ensure(f);T=Site3D.T}
+function ensureSite(f){if(!Site3D)Site3D=initSite3D({getS:()=>S,schedule,PHASES,GPUS,fmtN,REDUCE,perRack:perRackFor,incidents:{defs:INCIDENTS,spawn:spawnIncident,dispatch:dispatchIncident,resolve:resolveIncident}});Site3D.ensure(f);T=Site3D.T}
 function renderSite3D(){if(Site3D)Site3D.frame()}
 function diveTo(fid){
   const f=S.facilities.find(x=>x.id===fid);if(!f)return;
@@ -526,14 +595,14 @@ function animate(){
 function start(data){
   S=(data&&data.regions)?data:freshState();
   S.running=false;
-  if(S.unlockedNext){GPUS.next.locked=false;GPUS.next.name='Next-gen'}
+  if(S.unlockedNext){GPUS.next.locked=false;GPUS.next.name='Rubin'}
   fillSelects();writeCfg();
   $('stress').checked=!!S.stress;
   if(!S.log.length)log('Portfolio preview: '+S.regions.length+' places including '+S.regions.filter(r=>r.real).length+' tracked sites (amber diamonds). Pick a place, set a spec, start construction, and watch the build, the economics and the community effects month by month. Stress events are off; switch them on to test resilience.','ev');
   renderLog();render();
   requestAnimationFrame(animate);
 }
-function writeCfg(){$('energy').value=S.cfg.energy;const gm=S.cfg.gpuMix||{[S.cfg.gpu]:100};for(const k of ['h100','b200','gb300','next'])$('gm-'+k).value=gm[k]||0;$('dens').value=S.cfg.dens;$('racks').value=S.cfg.racks;$('crew').value=S.cfg.crew}
+function writeCfg(){$('energy').value=S.cfg.energy;const gm=S.cfg.gpuMix||{[S.cfg.gpu]:100};for(const k in GPUS)$('gm-'+k).value=gm[k]||0;$('dens').value=S.cfg.dens;$('racks').value=S.cfg.racks;$('crew').value=S.cfg.crew}
 function applyFocus(f){const r=S.regions.find(x=>x.id===f.regionId);if(!r)return;if(f.cfg){S.cfg={...S.cfg,...f.cfg};writeCfg()}selectRegion(r.id);if(f.label)log(f.label,'ev');if(f.autoBreakGround)setTimeout(()=>breakGround(),500)}
 let stopped=false;
 start({});

@@ -48,7 +48,7 @@ export const BuildPlan = z.object({
   summary: z.string().describe("Two or three sentences describing how to build it so the verdict holds"),
   energyMix: z.object({ grid: z.number(), gas: z.number(), solar: z.number(), wind: z.number(), nuclear: z.number(), geothermal: z.number(), hydro: z.number() }).describe("Shares summing to about 1"),
   itMw: z.number(),
-  gpu: z.enum(["h100", "b200", "gb300", "next"]),
+  gpu: z.enum(["h100", "h200", "b200", "gb200", "gb300", "next"]),
   densityKw: z.union([z.literal(40), z.literal(80), z.literal(130)]),
   crew: z.number().describe("Peak construction headcount"),
   robots: z.number().min(0).max(1).describe("Share of construction automated"),

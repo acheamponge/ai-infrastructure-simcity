@@ -5,7 +5,7 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
 export function initSite3D(deps) {
-const { getS, schedule, PHASES, GPUS, fmtN, REDUCE } = deps;
+const { getS, schedule, PHASES, GPUS, fmtN, REDUCE, perRack, incidents: INC } = deps;
 // Thermal camera post-process. In thermal mode every mesh renders its temperature as a grey level
 // (0 = 20 °C, 1 = 80 °C) into a low-res target, like a 320x240 microbolometer. The composite pass
 // blurs it, adds heat bloom around hot spots, sensor noise and fixed-pattern stripes, then maps
@@ -991,8 +991,8 @@ function ctex(w, h, draw, rep) {
 }
 const rowName = (r) => { let s = ""; r++; while (r > 0) { const m = (r - 1) % 26; s = String.fromCharCode(65 + m) + s; r = Math.floor((r - 1) / 26); } return s; };
 const ease = (u) => u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
-const GPU_COL = { h100: 0x3aa0ff, b200: 0x3fd8c6, gb300: 0xf0b443, next: 0xb48cff };
-const GPU_NAME = { h100: "H100", b200: "B200", gb300: "GB300", next: "Next-gen" };
+const GPU_COL = { h100: 0x3aa0ff, h200: 0x8ad0ff, b200: 0x3fd8c6, gb200: 0x76b900, gb300: 0xf0b443, next: 0xb48cff };
+const GPU_NAME = { h100: "H100", h200: "H200", b200: "B200", gb200: "GB200 NVL72", gb300: "GB300 NVL72", next: "Rubin NVL144" };
 
 const concrete = ctex(1024, 1024, (g, w, h) => {
   g.fillStyle = "#b9bcbd"; g.fillRect(0, 0, w, h);
@@ -1012,22 +1012,89 @@ function plateTex(a, b) {
 }
 
 // ---------------------------------------------------------------- detailed rack (camera-following pool)
+// Two interiors are built once per pooled rack and toggled by GPU form:
+//   hgx: up to seven 8-GPU HGX nodes (H100 / H200 / B200), fan-wall front bezels, SXM heatsink banks on top of each chassis
+//   nvl: a GB200 / GB300 NVL72 rack-scale system: two blocks of nine 1U compute trays around nine NVLink switch trays,
+//        power shelves top and bottom, coolant supply / return manifolds, a copper busbar and the NVLink spine at the back
 const RK = { W: 1.05, H: 2.3, D: .78 };
 const RM = {
-  frame: stdM(0x1b1e22, .6, .25), glass: stdM(0x9fc4e0, .15, .1, { transparent: true, opacity: .22 }), handle: stdM(0xc9ced3, .35, .6), chrome: stdM(0xd8dde2, .2, .9),
+  frame: stdM(0x1b1e22, .6, .25), glass: stdM(0x9fc4e0, .15, .1, { transparent: true, opacity: .14 }), handle: stdM(0xc9ced3, .35, .6), chrome: stdM(0xd8dde2, .2, .9),
   tealOn: stdM(0x3fd8c6, .3, 0, { emissive: 0x3fd8c6, emissiveIntensity: 2.5 }), tealOff: stdM(0x163a37, .3, 0),
   ambOn: stdM(0xffb020, .3, 0, { emissive: 0xffb020, emissiveIntensity: 2.5 }), ambOff: stdM(0x4a3410, .3, 0),
+  redOn: stdM(0xff3b3b, .3, 0, { emissive: 0xff3b3b, emissiveIntensity: 3 }),
   server: stdM(0x3a4047, .45, .4), face: stdM(0x14171b, .5, .2), pdu: stdM(0xb3261e, .5, .1), cable: stdM(0x0e0e10, .6, 0), rail: stdM(0x9aa1a7, .3, .85), back: stdM(0x2a2e33, .6, .3),
+  chassis: stdM(0x2b3036, .5, .45), fin: stdM(0xd3bd84, .32, .8), finH: stdM(0xb9c2c9, .3, .85), copper: stdM(0xb87333, .35, .8), gold: stdM(0xc9a24a, .4, .7),
+  blue: stdM(0x2f7fd8, .4, .3), red: stdM(0xc0392b, .4, .3), black: stdM(0x111317, .6, .2), silver: stdM(0xaab2ba, .3, .7), violet: stdM(0x8c6bd8, .4, .6),
 };
+// fin stripes for the top of a GPU heatsink
+const FIN_TEX = ctex(64, 64, (g, w, h) => { g.fillStyle = "#e8dcb8"; g.fillRect(0, 0, w, h); g.fillStyle = "#5a4a2a"; for (let x = 2; x < w; x += 6) g.fillRect(x, 0, 2, h); });
 const RG = {
   door: new RoundedBoxGeometry(RK.W - .05, RK.H - .08, .025, 2, .006), body: new THREE.BoxGeometry(RK.W - .02, RK.H, RK.D - .05), lever: new RoundedBoxGeometry(.03, .14, .03, 2, .008),
   pilot: new THREE.CylinderGeometry(.012, .012, .012, 16), bezel: new THREE.CylinderGeometry(.017, .017, .006, 16), plate: new THREE.PlaneGeometry(.52, .13),
-  tray: new THREE.BoxGeometry(RK.W - .22, .19, RK.D - .22), face: new THREE.BoxGeometry(RK.W - .24, .17, .02), led: new THREE.BoxGeometry(.022, .012, .004),
+  led: new THREE.BoxGeometry(.022, .012, .004), ledS: new THREE.BoxGeometry(.016, .01, .004),
   backp: new THREE.BoxGeometry(RK.W - .1, RK.H - .1, .02), railv: new THREE.BoxGeometry(.03, RK.H - .2, .03), pduv: new THREE.BoxGeometry(.05, RK.H - .3, .05), cablev: new THREE.CylinderGeometry(.012, .012, RK.H - .3, 8),
+  // hgx node
+  nodeBox: new THREE.BoxGeometry(RK.W - .22, .2, RK.D - .22), nodeFace: new THREE.PlaneGeometry(RK.W - .24, .2), sink: new THREE.BoxGeometry(.16, .06, .2), sinkFin: new THREE.BoxGeometry(.16, .062, .012),
+  // nvl rack
+  nvlBody: new THREE.BoxGeometry(RK.W - .22, 1.9, RK.D - .26), nvlFace: new THREE.PlaneGeometry(RK.W - .2, .5), shelfFace: new THREE.PlaneGeometry(RK.W - .2, .2),
+  sledFloor: new THREE.BoxGeometry(RK.W - .24, .015, RK.D - .2), sledRail: new THREE.BoxGeometry(.02, .09, RK.D - .2), bezelBox: new THREE.BoxGeometry(RK.W - .24, .2, .03),
+  gpuMod: new THREE.BoxGeometry(.165, .13, .2), gpuBase: new THREE.BoxGeometry(.18, .012, .215), nvsw: new THREE.BoxGeometry(RK.W - .4, .05, .09), cpu: new THREE.BoxGeometry(.14, .09, .12),
+  traySled: new THREE.BoxGeometry(RK.W - .24, .012, RK.D - .2), cpuPlate: new THREE.BoxGeometry(.13, .035, .13), gpuPlate: new THREE.BoxGeometry(.17, .04, .16), hose: new THREE.CylinderGeometry(.012, .012, RK.D - .24, 8), trayFace: new THREE.BoxGeometry(RK.W - .24, .045, .02),
+  manifold: new THREE.CylinderGeometry(.028, .028, 1.95, 10), busbar: new THREE.BoxGeometry(.07, 1.95, .025), spine: new THREE.CylinderGeometry(.035, .035, 1.25, 8), qd: new THREE.CylinderGeometry(.014, .014, .05, 8),
 };
+const GPU_HEX = (k) => "#" + GPU_COL[k].toString(16).padStart(6, "0");
+const texCache = new Map();
+function cachedTex(key, w, h, draw) { if (texCache.has(key)) return texCache.get(key); const t = ctex(w, h, draw); t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; texCache.set(key, t); return t; }
+// HGX node front: brand bezel with status LEDs on the left, hex mesh and four fan modules across the rest
+function hgxFaceTex(gpu, G) {
+  return cachedTex("hgx:" + gpu, 512, 128, (g, w, h) => {
+    g.fillStyle = "#1a1d21"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#0a0c0f"; for (let y = 9; y < h - 6; y += 7) for (let x = 132; x < w - 6; x += 8) { g.beginPath(); g.arc(x + ((y / 7 | 0) % 2) * 4, y, 2.3, 0, 6.283); g.fill(); }
+    for (let i = 0; i < 4; i++) {
+      const cx = 176 + i * 88, cy = h / 2; g.fillStyle = "#15181c"; g.beginPath(); g.arc(cx, cy, 44, 0, 6.283); g.fill();
+      g.strokeStyle = "#5a6470"; g.lineWidth = 4; g.beginPath(); g.arc(cx, cy, 42, 0, 6.283); g.stroke();
+      g.strokeStyle = "#3b434b"; g.lineWidth = 6; for (let k = 0; k < 7; k++) { const a = k / 7 * 6.283; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * 36, cy + Math.sin(a) * 36); g.stroke(); }
+      g.fillStyle = "#2e353c"; g.beginPath(); g.arc(cx, cy, 11, 0, 6.283); g.fill();
+    }
+    g.fillStyle = "#262b31"; g.fillRect(0, 0, 124, h); g.fillStyle = GPU_HEX(gpu); g.fillRect(8, 10, 4, h - 20);
+    g.fillStyle = "#e8ecef"; g.font = "bold 18px Arial"; g.fillText("HGX", 22, 40); g.font = "bold 28px Arial"; g.fillText(G.name, 22, 72);
+    g.fillStyle = "#8a949e"; g.font = "12px Arial"; g.fillText("8× SXM · " + G.hbm, 22, 94); g.fillText(G.u + "U · liquid-ready", 22, 110);
+  });
+}
+// NVL compute block: nine 1U trays, each with blue / red coolant quick-disconnects, two superchip cold-plate covers and a status LED
+function nvlComputeTex(gpu, G) {
+  return cachedTex("nvlc:" + gpu, 256, 512, (g, w, h) => {
+    const acc = GPU_HEX(gpu), n = 9, sh = h / n;
+    for (let i = 0; i < n; i++) {
+      const y = i * sh; g.fillStyle = i % 2 ? "#1c2024" : "#20252a"; g.fillRect(0, y, w, sh);
+      g.fillStyle = "#6b737b"; g.fillRect(0, y, w, 2); g.fillStyle = "#44494f"; g.fillRect(0, y + sh - 3, w, 3);
+      g.fillStyle = "#2f7fd8"; g.beginPath(); g.arc(16, y + sh / 2, 7, 0, 6.283); g.fill(); g.fillStyle = "#c0392b"; g.beginPath(); g.arc(36, y + sh / 2, 7, 0, 6.283); g.fill();
+      for (const x of [56, 150]) { g.fillStyle = gpu === "gb200" ? "#8a5a2b" : gpu === "gb300" ? "#3a3f45" : "#4a3f6e"; g.fillRect(x, y + 8, 86, sh - 16); g.fillStyle = gpu === "gb200" ? "#b87333" : gpu === "gb300" ? "#c9a24a" : "#b48cff"; g.fillRect(x + 6, y + 13, 74, sh - 26); g.fillStyle = "#15181b"; for (let k = 0; k < 6; k++) g.fillRect(x + 10 + k * 12, y + 17, 6, sh - 34); }
+      g.fillStyle = "#111"; g.fillRect(236, y + 10, 14, sh - 20); g.fillStyle = acc; g.fillRect(240, y + sh / 2 - 3, 6, 6);
+      g.fillStyle = "#9aa3ad"; g.font = "bold 9px Arial"; g.fillText(G.node.split(" ")[0], 58, y + sh - 6);
+    }
+  });
+}
+// NVLink switch block: nine trays of gold port banks on a copper nameplate
+function nvlSwitchTex(gpu) {
+  return cachedTex("nvls:" + gpu, 256, 512, (g, w, h) => {
+    const n = 9, sh = h / n;
+    for (let i = 0; i < n; i++) {
+      const y = i * sh; g.fillStyle = "#15181c"; g.fillRect(0, y, w, sh); g.fillStyle = "#555c64"; g.fillRect(0, y, w, 2);
+      g.fillStyle = gpu === "gb300" ? "#8c6f2f" : "#8a5a2b"; g.fillRect(6, y + 6, 40, sh - 12); g.fillStyle = "#f3e2b2"; g.font = "bold 9px Arial"; g.fillText("NVLINK", 8, y + sh / 2 + 3);
+      for (let k = 0; k < 18; k++) { g.fillStyle = "#c9a24a"; g.fillRect(54 + k * 11, y + 9, 8, (sh - 18) / 2 - 2); g.fillRect(54 + k * 11, y + sh / 2 + 1, 8, (sh - 18) / 2 - 2); }
+      g.fillStyle = "#3fd8c6"; g.fillRect(w - 12, y + sh / 2 - 3, 6, 6);
+    }
+  });
+}
+// power shelf: six hot-swap PSUs with handles and a green status LED each
+const SHELF_TEX = cachedTex("shelf", 256, 64, (g, w, h) => {
+  g.fillStyle = "#1a1d21"; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 6; i++) { const x = i * (w / 6); g.fillStyle = "#2a2f35"; g.fillRect(x + 3, 4, w / 6 - 6, h - 8); g.fillStyle = "#0b0d10"; for (let yy = 10; yy < h - 10; yy += 6) g.fillRect(x + 8, yy, w / 6 - 24, 3); g.fillStyle = "#9aa3ad"; g.fillRect(x + w / 6 - 14, 10, 4, h - 20); g.fillStyle = "#5fd483"; g.fillRect(x + 8, h - 9, 5, 4); }
+});
 class Rack {
   constructor() {
-    this.group = new THREE.Group(); this.parts = []; this.tmats = {}; this.thermal = false; this.index = -1; this.gpu = "b200";
+    this.group = new THREE.Group(); this.parts = []; this.tmats = {}; this.thermal = false; this.index = -1; this.gpu = "b200"; this.form = "hgx"; this.fault = false;
     this.openT = 0; this.openTarget = 0; this.openV = 0; this.pop = 0; this.popT = 0; this.state = { live: false, load: 0 }; this.leds = []; this.tag = ""; this.sub = "";
     const body = this.mesh(RG.body, RM.frame, "body"); body.position.z = -.025; body.userData.pick = "door";
     this.hinge = new THREE.Group(); this.hinge.position.set(-RK.W / 2 + .02, 0, RK.D / 2 - .02); this.group.add(this.hinge);
@@ -1042,39 +1109,102 @@ class Rack {
     });
     this.glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     this.glow.position.set(0, .2, .5); this.glow.visible = false; this.group.add(this.glow);
-    // interior is always built: the pool is small
+    // shared interior: back panel, rails, vertical PDUs, cabling
     const I = new THREE.Group(); this.group.add(I);
     const back = this.mesh(RG.backp, RM.back, "body", I); back.position.z = -RK.D / 2 + .05;
     for (const x of [-1, 1]) { const r = this.mesh(RG.railv, RM.rail, "body", I); r.position.set(x * (RK.W / 2 - .1), 0, RK.D / 2 - .12); const p = this.mesh(RG.pduv, RM.pdu, "body", I); p.position.set(x * (RK.W / 2 - .09), 0, -.15); }
-    this.faceMat = stdM(0x14171b, .5, .2);
-    for (let i = 0; i < 8; i++) {
-      const y = -RK.H / 2 + .32 + i * .235;
-      const tr = this.mesh(RG.tray, RM.server, "srv", I); tr.position.set(0, y, -.06);
-      const fc = this.mesh(RG.face, this.faceMat, "srv", I); fc.position.set(0, y, RK.D / 2 - .15);
-      for (let j = 0; j < 5; j++) {
-        const l = this.mesh(RG.led, RM.tealOff, "srv", I); l.position.set(-RK.W / 2 + .2 + j * .045, y + .04, RK.D / 2 - .138); l.castShadow = false; this.leds.push({ m: l, next: Math.random(), j });
-      }
-    }
     for (let k = 0; k < 3; k++) { const c = this.mesh(RG.cablev, RM.cable, "body", I); c.position.set(-.3 + k * .05, 0, -RK.D / 2 + .12); }
     this.lamp = new THREE.PointLight(0xdff6ff, 0, 3.5, 1.4); this.lamp.position.set(0, .4, .1); I.add(this.lamp);
+    this.buildHGX(I); this.buildNVL(I); this.detail = null; this.sleds = [];
     this.group.visible = false;
+  }  // ---- pull-out detail: built the first time a rack is opened. The top three sleds slide into the aisle with their lids off,
+  //      so the GPUs themselves are visible: eight SXM modules with finned heatsinks around the NVSwitch board for HGX nodes,
+  //      Grace CPU and Blackwell GPU cold plates with their coolant hoses on NVL72 compute trays.
+  buildDetail() {
+    if (this.detail) return; const g = this.detail = new THREE.Group(); this.group.add(g); this.sleds = [];
+    const finMat = (k) => new THREE.MeshStandardMaterial({ map: FIN_TEX, color: k === "b200" ? 0xd9c8a0 : k === "h200" ? 0xcfd6dc : 0xd3bd84, roughness: .35, metalness: .75 });
+    const hgxSled = (y, k) => {
+      const s = new THREE.Group(); s.position.y = y; g.add(s);
+      const floor = this.mesh(RG.sledFloor, RM.silver, "srv", s); floor.position.set(0, -.085, 0);
+      for (const x of [-1, 1]) { const r = this.mesh(RG.sledRail, RM.rail, "srv", s); r.position.set(x * (RK.W / 2 - .115), -.04, 0); }
+      const bezel = this.mesh(RG.nodeFace, this.hgxFaceMat, "srv", s); bezel.position.set(0, .01, RK.D / 2 - .13); const bz = this.mesh(RG.bezelBox, RM.black, "srv", s); bz.position.set(0, .01, RK.D / 2 - .145);
+      const fm = finMat(k);
+      for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) { const m = this.mesh(RG.gpuMod, fm, "srv", s); m.position.set(-RK.W / 2 + .2 + c * .195, -.005, -.21 + r * .27); const base = this.mesh(RG.gpuBase, RM.copper, "srv", s); base.position.set(m.position.x, -.07, m.position.z); }
+      const sw = this.mesh(RG.nvsw, RM.black, "srv", s); sw.position.set(0, -.045, -.075);
+      for (const x of [-.22, .22]) { const cpu = this.mesh(RG.cpu, RM.finH, "srv", s); cpu.position.set(x, -.03, RK.D / 2 - .28); }
+      for (let j = 0; j < 4; j++) { const l = this.mesh(RG.led, RM.tealOff, "srv", s); l.position.set(-RK.W / 2 + .16 + j * .04, -.06, RK.D / 2 - .127); l.castShadow = false; this.hgxLeds.push({ m: l, next: Math.random(), j, sled: true }); }
+      return s;
+    };
+    const nvlSled = (y, k) => {
+      const s = new THREE.Group(); s.position.y = y; g.add(s);
+      const floor = this.mesh(RG.traySled, RM.silver, "srv", s); floor.position.set(0, -.02, 0);
+      const plate = k === "gb300" ? RM.gold : k === "next" ? RM.violet : RM.copper;
+      for (const x of [-.22, .22]) { const cpu = this.mesh(RG.cpuPlate, RM.finH, "srv", s); cpu.position.set(x, .01, -.18); for (const dz of [.02, .2]) { const gpu = this.mesh(RG.gpuPlate, plate, "srv", s); gpu.position.set(x, .012, dz); } }
+      for (const [x, m] of [[-.43, RM.blue], [-.39, RM.red]]) { const h = this.mesh(RG.hose, m, "srv", s); h.rotation.x = HALF_PI; h.position.set(x, .02, 0); h.castShadow = false; }
+      const fc = this.mesh(RG.trayFace, RM.black, "srv", s); fc.position.set(0, .015, RK.D / 2 - .13);
+      return s;
+    };
+    this.makeSleds = (form, k, n) => {
+      for (const s of this.sleds) { g.remove(s); } this.sleds = []; this.hgxLeds = this.hgxLeds.filter((l) => !l.sled);
+      if (form === "nvl") for (let j = 0; j < 3; j++) this.sleds.push(nvlSled(.42 + .25 - (j + .5) * (.5 / 9), k));
+      else for (let j = 0; j < Math.min(3, n); j++) this.sleds.push(hgxSled(-RK.H / 2 + .3 + (n - 1 - j) * .27, k));
+      this.sledForm = form; this.sledKey = k; this.sledN = n;
+      if (this.thermal) for (const m of this.parts) if (!m.userData.tset) m.material = this.tmat(m.userData.tkey);
+    };
+  }
+
+  // ---- HGX: seven node slots, shown according to the rack's GPU count
+  buildHGX(I) {
+    const g = this.hgx = new THREE.Group(); I.add(g); this.nodes = []; this.hgxLeds = [];
+    this.hgxFaceMat = new THREE.MeshStandardMaterial({ roughness: .6, metalness: .2 });
+    const pitch = .27;
+    for (let i = 0; i < 7; i++) {
+      const y = -RK.H / 2 + .3 + i * pitch, n = new THREE.Group(); g.add(n); this.nodes.push(n);
+      const ch = this.mesh(RG.nodeBox, RM.chassis, "srv", n); ch.position.set(0, y, -.06);
+      const fc = this.mesh(RG.nodeFace, this.hgxFaceMat, "srv", n); fc.position.set(0, y, RK.D / 2 - .16);
+      for (let j = 0; j < 4; j++) { const l = this.mesh(RG.led, RM.tealOff, "srv", n); l.position.set(-RK.W / 2 + .16 + j * .04, y - .07, RK.D / 2 - .157); l.castShadow = false; this.hgxLeds.push({ m: l, next: Math.random(), j }); }
+    }
+  }
+  // ---- NVL72: compute blocks, switch block, power shelves, manifolds, busbar, spine
+  buildNVL(I) {
+    const g = this.nvl = new THREE.Group(); I.add(g); this.nvlLeds = [];
+    this.nvlCompMat = new THREE.MeshStandardMaterial({ roughness: .55, metalness: .35 }); this.nvlSwMat = new THREE.MeshStandardMaterial({ roughness: .5, metalness: .5 });
+    const shelfMat = new THREE.MeshStandardMaterial({ map: SHELF_TEX, roughness: .6, metalness: .3 });
+    const body = this.mesh(RG.nvlBody, RM.chassis, "srv", g); body.position.set(0, -.08, -.08);
+    const zf = RK.D / 2 - .17;
+    const blocks = [["comp", -.58], ["sw", -.08], ["comp", .42]];
+    for (const [kind, y] of blocks) {
+      const fc = this.mesh(RG.nvlFace, kind === "comp" ? this.nvlCompMat : this.nvlSwMat, "srv", g); fc.position.set(0, y, zf);
+      if (kind === "comp") for (let j = 0; j < 9; j++) { const l = this.mesh(RG.ledS, RM.tealOff, "srv", g); l.position.set(RK.W / 2 - .13, y + .25 - (j + .5) * (.5 / 9), zf + .003); l.castShadow = false; this.nvlLeds.push({ m: l, next: Math.random(), j }); }
+    }
+    for (const y of [-.93, .77]) { const s = this.mesh(RG.shelfFace, shelfMat, "srv", g); s.position.set(0, y, zf); }
+    // coolant supply (blue) and return (red) manifolds up the left rear, quick-disconnect stubs off the compute blocks
+    for (const [z, m] of [[-.12, RM.blue], [-.24, RM.red]]) { const c = this.mesh(RG.manifold, m, "body", g); c.position.set(-RK.W / 2 + .13, -.05, z); for (const y of [-.58, .42]) for (let j = 0; j < 3; j++) { const q = this.mesh(RG.qd, m, "body", g); q.rotation.z = HALF_PI; q.position.set(-RK.W / 2 + .16, y - .18 + j * .18, z); q.castShadow = false; } }
+    const bus = this.mesh(RG.busbar, RM.copper, "body", g); bus.position.set(.12, -.05, -RK.D / 2 + .075);
+    for (const x of [-.02, .06]) { const sp = this.mesh(RG.spine, RM.copper, "body", g); sp.position.set(x + .18, -.08, -RK.D / 2 + .14); }
   }
   mesh(geo, mat, tkey, parent) {
     const m = new THREE.Mesh(geo, mat); m.castShadow = true; m.receiveShadow = true; m.userData.rack = this; m.userData.tkey = tkey; m.userData.orig = mat; m.userData.shared = true;
     (parent || this.group).add(m); this.parts.push(m); if (this.thermal) m.material = this.tmat(tkey); return m;
   }
-  setTarget(index, x, z, tag, sub, gpu) {
-    this.index = index; this.tag = tag; this.sub = sub; this.gpu = gpu;
+  setTarget(index, x, z, tag, sub, gpu, G, gpusInRack) {
+    this.index = index; this.tag = tag; this.sub = sub; this.gpu = gpu; this.form = G.form;
     this.group.position.set(x, RK.H / 2, z); this.group.visible = true;
     this.plateMat.map = plateTex(tag, sub); this.plateMat.needsUpdate = true;
     this.onMat = stdM(GPU_COL[gpu], .3, 0, { emissive: GPU_COL[gpu], emissiveIntensity: 2.5 }); this.offMat = stdM(0x1a2026, .3, 0);
-    for (const l of this.leds) { l.m.material = this.offMat; l.m.userData.orig = this.offMat; }
+    if (this.form === "nvl") { this.hgx.visible = false; this.nvl.visible = true; this.nvlCompMat.map = nvlComputeTex(gpu, G); this.nvlSwMat.map = nvlSwitchTex(gpu); this.nvlCompMat.needsUpdate = this.nvlSwMat.needsUpdate = true; this.leds = this.nvlLeds; }
+    else { this.hgx.visible = true; this.nvl.visible = false; this.hgxFaceMat.map = hgxFaceTex(gpu, G); this.hgxFaceMat.needsUpdate = true; const n = Math.max(1, Math.min(7, Math.floor(gpusInRack / 8))); this.nodes.forEach((nd, i) => nd.visible = i < n); this.leds = this.hgxLeds; }
+    for (const l of [...this.hgxLeds, ...this.nvlLeds]) { l.m.material = this.offMat; l.m.userData.orig = this.offMat; }
+    this.gpusInRack = gpusInRack; if (this.detail) this.detail.visible = false;
     this.setOpen(false); this.openT = 0; this.openV = 0;
   }
-  release() { this.index = -1; this.group.visible = false; this.setOpen(false); }
+  release() { this.index = -1; this.group.visible = false; this.setOpen(false); this.fault = false; if (this.detail) this.detail.visible = false; }
   tmat(k) { return this.tmats[k] || (this.tmats[k] = tempMaterial(this.temp(k))); }
-  temp(k) { const s = this.state; if (!s.live) return 24; return k === "srv" ? 26 + 36 * s.load : k === "door" ? 24 + 12 * s.load : 26 + 16 * s.load; }
-  setOpen(v) { this.openTarget = v ? 1 : 0; }
+  temp(k) { const s = this.state; if (this.fault) return k === "srv" ? 78 : 40; if (!s.live) return 24; const rise = 1 + (s.heat || 0) * .6; return k === "srv" ? 26 + 36 * s.load * rise : k === "door" ? 24 + 12 * s.load * rise : 26 + 16 * s.load * rise; }
+  setOpen(v) {
+    this.openTarget = v ? 1 : 0;
+    if (v) { this.buildDetail(); const n = Math.max(1, Math.min(7, Math.floor(this.gpusInRack / 8))); if (this.sledForm !== this.form || this.sledKey !== this.gpu || this.sledN !== n) this.makeSleds(this.form, this.gpu, n); for (const l of this.hgxLeds) if (l.sled) { l.m.material = this.offMat; l.m.userData.orig = this.offMat; } this.detail.visible = true; }
+  }
   setThermal(on) { this.thermal = on; this.applyThermal(); }
   applyThermal() { for (const m of this.parts) m.material = this.thermal ? this.tmat(m.userData.tkey) : m.userData.orig; this.refreshThermal(); }
   refreshThermal() {
@@ -1082,9 +1212,9 @@ class Rack {
     const hot = this.temp("srv"); this.glow.visible = this.thermal && hot > 48;
     if (this.glow.visible) { const k = clampN((hot - 48) / 16, 0, 1); this.glow.scale.setScalar(.6 + k * 1.2); this.glow.material.opacity = .15 + k * .3; }
   }
-  apply(live, load) {
-    this.state = { live, load };
-    this.pilots[0].userData.orig = live ? RM.tealOn : RM.tealOff; this.pilots[1].userData.orig = live ? RM.ambOff : RM.ambOn;
+  apply(live, load, fault = false, heat = 0) {
+    this.state = { live, load, heat }; this.fault = fault;
+    this.pilots[0].userData.orig = live && !fault ? RM.tealOn : RM.tealOff; this.pilots[1].userData.orig = fault ? RM.redOn : live ? RM.ambOff : RM.ambOn;
     if (!this.thermal) { this.pilots[0].material = this.pilots[0].userData.orig; this.pilots[1].material = this.pilots[1].userData.orig; }
     this.refreshThermal();
   }
@@ -1093,10 +1223,21 @@ class Rack {
     this.openV += ((this.openTarget - this.openT) * 38 - this.openV * 7.5) * dt; this.openT = Math.max(0, this.openT + this.openV * dt);
     this.popT += (this.pop - this.popT) * (1 - Math.exp(-dt * 14));
     this.doorMesh.position.z = this.popT * .02; this.hinge.rotation.y = -this.openT * 1.9; this.lever.rotation.z = this.openT * .8;
-    this.lamp.intensity = this.openT * 30;
+    this.lamp.intensity = this.openT * 18;
+    if (this.detail) {
+      const k = ease(clampN(this.openT, 0, 1)), show = this.openTarget > 0 || k > .02; this.detail.visible = show;
+      if (show) {
+        this.sleds.forEach((sl, j) => { sl.position.z = k * (.62 - j * .17); sl.visible = k > .02; });
+        if (this.form === "hgx") { const n = this.sledN; this.nodes.forEach((nd, i) => nd.visible = i < n && !(k > .3 && i >= n - this.sleds.length)); }
+      } else if (this.form === "hgx" && this.sledN) { const n = this.sledN; this.nodes.forEach((nd, i) => nd.visible = i < n); }
+    }
     if (!this.thermal && this.onMat) {
       const live = this.state.live;
-      for (const l of this.leds) { if (!live) { l.m.material = this.offMat; continue; } if (t > l.next) { l.m.material = Math.random() > .3 ? this.onMat : this.offMat; l.next = t + .05 + Math.random() * .4; } }
+      for (const l of this.leds) {
+        if (this.fault) { if (t > l.next) { l.m.material = Math.random() > .8 ? RM.redOn : this.offMat; l.next = t + .08 + Math.random() * .5; } continue; }
+        if (!live) { l.m.material = this.offMat; continue; }
+        if (t > l.next) { l.m.material = Math.random() > .3 ? this.onMat : this.offMat; l.next = t + .05 + Math.random() * .4; }
+      }
     }
   }
 }
@@ -1109,31 +1250,44 @@ function makeHuman(color, hat) {
   const h = new THREE.Mesh(new THREE.CylinderGeometry(.19, .2, .12, 10), stdM(hat, .5, 0)); h.position.y = 1.62; h.userData.static = true; h.userData.temp = 31; m.add(h);
   return m;
 }
+// Floor robots are low disc units, the shape of a robot vacuum: a dark deck with a grey front bumper, a sensor puck
+// on top with a status lamp, a front camera bump and a spinning side brush. They sweep and inspect the aisles.
 function makeRobot(kind) {
   const m = new THREE.Group();
   if (kind === "build") {
     const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, .7, 1.3), stdM(0x8f9cff, .6, .3, { emissive: 0x4050c0, emissiveIntensity: .4 })); b.position.y = .45; b.castShadow = true; b.userData.static = true; b.userData.temp = 36; m.add(b);
     const arm = new THREE.Mesh(new THREE.BoxGeometry(.12, 1.1, .12), stdM(0xd8dde3, .5, .4)); arm.position.set(.3, 1.3, 0); arm.rotation.z = -.4; arm.userData.static = true; arm.userData.temp = 30; m.add(arm);
-  } else {
-    const b = new THREE.Mesh(new THREE.BoxGeometry(.6, .35, .9), stdM(0xe8edf2, .5, .3)); b.position.y = .25; b.castShadow = true; b.userData.static = true; b.userData.temp = 32; m.add(b);
-    for (const [x, z] of [[-.28, .3], [.28, .3], [-.28, -.3], [.28, -.3]]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, .06, 10), stdM(0x1a1d22, .8, 0)); w.rotation.z = HALF_PI; w.position.set(x, .09, z); w.userData.static = true; m.add(w); }
-    const mast = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, 1.1, 8), stdM(0x9aa3ad, .4, .6)); mast.position.y = .95; mast.userData.static = true; m.add(mast);
-    const lamp = new THREE.Mesh(new THREE.SphereGeometry(.07, 8, 6), new THREE.MeshBasicMaterial({ color: 0x3fd8c6 })); lamp.position.y = 1.55; m.add(lamp); m.userData.lamp = lamp;
-    const eye = new THREE.Mesh(new THREE.BoxGeometry(.3, .08, .04), new THREE.MeshBasicMaterial({ color: 0x3aa0ff })); eye.position.set(0, .3, .46); m.add(eye);
+    return m;
   }
+  const deck = new THREE.Mesh(new THREE.CylinderGeometry(.235, .245, .085, 28), stdM(0x262a2f, .5, .35)); deck.position.y = .062; deck.castShadow = true; deck.userData.static = true; deck.userData.temp = 31; m.add(deck);
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(.205, .22, .02, 28), stdM(0x3a4047, .35, .5)); top.position.y = .114; top.userData.static = true; top.userData.temp = 31; m.add(top);
+  const bumper = new THREE.Mesh(new THREE.CylinderGeometry(.252, .252, .06, 28, 1, false, -Math.PI * .5, Math.PI), stdM(0x9aa3ad, .6, .3)); bumper.position.y = .058; bumper.userData.static = true; bumper.userData.temp = 30; m.add(bumper);
+  const puck = new THREE.Mesh(new THREE.CylinderGeometry(.075, .08, .045, 20), stdM(0x14171b, .4, .4)); puck.position.y = .146; puck.userData.static = true; puck.userData.temp = 34; m.add(puck);
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(.022, 10, 8), new THREE.MeshBasicMaterial({ color: 0x3fd8c6 })); lamp.position.set(0, .178, 0); m.add(lamp); m.userData.lamp = lamp;
+  const cam = new THREE.Mesh(new THREE.BoxGeometry(.09, .035, .05), stdM(0x111317, .5, .3)); cam.position.set(0, .135, .17); cam.userData.static = true; cam.userData.temp = 32; m.add(cam);
+  const eye = new THREE.Mesh(new THREE.BoxGeometry(.05, .014, .004), new THREE.MeshBasicMaterial({ color: 0x3aa0ff })); eye.position.set(0, .135, .196); m.add(eye);
+  const brush = new THREE.Group(); brush.position.set(.17, .02, .14); m.add(brush); m.userData.spin = brush;
+  for (let k = 0; k < 3; k++) { const br = new THREE.Mesh(new THREE.BoxGeometry(.19, .006, .016), stdM(0xd9c97a, .9, 0)); br.rotation.y = k * Math.PI * 2 / 3; br.position.x = Math.cos(k * Math.PI * 2 / 3) * .08; br.position.z = -Math.sin(k * Math.PI * 2 / 3) * .08; br.userData.static = true; br.userData.temp = 28; brush.add(br); }
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(.02, .02, .03, 8), stdM(0x3a4047, .5, .4)); brush.add(hub);
+  for (const x of [-.19, .19]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, .03, 12), stdM(0x111317, .8, 0)); w.rotation.z = HALF_PI; w.position.set(x, .04, -.02); w.userData.static = true; m.add(w); }
   return m;
 }
 class Walker {
-  constructor(mesh, spd, paths) { this.m = mesh; this.spd = spd; this.paths = paths; this.pts = []; this.i = 0; this.wait = 0; this.next(); const p = this.pts[0]; if (p) this.m.position.set(p[0], 0, p[1]); }
+  constructor(mesh, spd, paths) { this.m = mesh; this.spd = spd; this.paths = paths; this.pts = []; this.i = 0; this.wait = 0; this.held = false; this.task = null; this.next(); const p = this.pts[0]; if (p) this.m.position.set(p[0], 0, p[1]); }
   next() { this.pts = this.paths(this.m.position); this.i = 0; }
+  // send the walker along explicit points and keep it at the end until released
+  assign(pts, task) { this.pts = pts; this.i = 0; this.wait = 0; this.held = true; this.task = task; this.arrived = false; }
+  release() { this.held = false; this.task = null; this.arrived = false; this.m.position.y = 0; this.next(); }
   update(dt, t) {
+    if (this.m.userData.spin) this.m.userData.spin.rotation.y += dt * 14;
+    if (this.m.userData.lamp) this.m.userData.lamp.material.color.setHex(this.held ? (Math.sin(t * 10) > 0 ? 0xffb020 : 0x3a2a08) : (Math.sin(t * 6) > 0 ? 0x3fd8c6 : 0x0f2a28));
+    if (this.held && this.arrived) { if (!this.m.userData.spin) this.m.position.y = Math.abs(Math.sin(t * 4.5)) * .06; return; }
     if (this.wait > 0) { this.wait -= dt; return; }
-    const tgt = this.pts[this.i]; if (!tgt) { this.next(); return; }
+    const tgt = this.pts[this.i]; if (!tgt) { if (this.held) { this.arrived = true; return; } this.next(); return; }
     const dx = tgt[0] - this.m.position.x, dz = tgt[1] - this.m.position.z, d = Math.hypot(dx, dz);
-    if (d < .2) { this.i++; if (this.i >= this.pts.length) { this.wait = .5 + Math.random() * 2; this.next(); } return; }
+    if (d < .2) { this.i++; if (this.i >= this.pts.length) { if (this.held) { this.arrived = true; return; } this.wait = .5 + Math.random() * 2; this.next(); } return; }
     const step = Math.min(d, this.spd * dt * 60);
     this.m.position.x += dx / d * step; this.m.position.z += dz / d * step; this.m.rotation.y = Math.atan2(dx, dz);
-    if (this.m.userData.lamp) this.m.userData.lamp.material.color.setHex(Math.sin(t * 6) > 0 ? 0x3fd8c6 : 0x0f2a28);
   }
 }
 
@@ -1188,6 +1342,12 @@ class Site {
     }; addEventListener("keydown", this._key);
     document.querySelectorAll(".hudnav button[data-view]").forEach((b) => b.onclick = () => ({ campus: () => this.goCampus(), hall: () => this.goHall(), elec: () => this.goElec() })[b.dataset.view]());
     $id("thermalBtn").onclick = () => this.setThermal(!this.thermal);
+    this.inc = new Map();
+    document.querySelectorAll("#incSim button[data-inc]").forEach((b) => b.onclick = () => { if (!this.f || this.f.status !== "live") return; const inc = INC.spawn(this.f, b.dataset.inc, false); if (inc) { this.stage(`${INC.defs[inc.kind].name.toUpperCase()} · ${this.incWhere(inc)}`); setTimeout(() => this.stage(""), 2400); } });
+    $id("incList").addEventListener("click", (e) => {
+      const d = e.target.closest("button[data-dispatch]"); if (d) { const inc = (this.f.incidents || []).find((i) => String(i.id) === d.dataset.dispatch); inc && INC.dispatch(this.f, inc); return; }
+      const g = e.target.closest("[data-goto]"); if (g) { const inc = (this.f.incidents || []).find((i) => String(i.id) === g.dataset.goto); inc && this.gotoIncident(inc); }
+    });
   }
   dispose() { removeEventListener("keydown", this._key); this.renderer.dispose(); this.css.domElement.remove(); }
   stage(t) { const el = $id("hudStage"); el.textContent = t; el.classList.toggle("on", !!t); }
@@ -1201,7 +1361,7 @@ class Site {
 
   // ------------------------------------------------------------ build
   build(f) {
-    if (this.g) { this.scene.remove(this.g); this.g.traverse((x) => { if (x.geometry && !x.userData.shared) x.geometry.dispose(); }); for (const l of this.labels) l.element.remove(); this.labels = []; this.pickables = this.pickables.filter((m) => m.userData.rack); this.selected = null; this.hovered = null; for (const rk of this.pool) rk.release(); }
+    if (this.g) { for (const v of this.inc.values()) this.removeVisual(v); this.inc.clear(); this._incKey = null; this.scene.remove(this.g); this.g.traverse((x) => { if (x.geometry && !x.userData.shared) x.geometry.dispose(); }); for (const l of this.labels) l.element.remove(); this.labels = []; this.pickables = this.pickables.filter((m) => m.userData.rack); this.selected = null; this.hovered = null; for (const rk of this.pool) rk.release(); }
     this.f = f; this.fid = f.id;
     const racks = f.cfg.racks, cols = Math.min(40, Math.ceil(Math.sqrt(racks * 2.2))), rows = Math.ceil(racks / cols);
     const W = cols * 1.3 + 12, D = rows * 2.6 + 10, GAL = 16, DT = D + GAL, zOff = -GAL / 2, H = 11 + Math.min(6, f.plan.facMW / 60);
@@ -1209,7 +1369,7 @@ class Site {
     const g = this.g = new THREE.Group(); this.scene.add(g);
     const rackGpu = f.plan.rackGpu || Array.from({ length: racks }, () => f.cfg.gpu);
     const rowGpu = Array.from({ length: rows }, (_, r) => rackGpu[Math.min(racks - 1, r * cols)]);
-    const o = this.o = { W, D, DT, GAL, zOff, H, L, x0, z0, cols, rows, racks, liquid, rackGpu, rowGpu, p: { permit: 0, civil: 0, inter: 0, shell: 0, mep: 0, racks: 0, comm: 0 }, live: 0, installed: -1, inside: false, hidden: new Set(), assign: new Map(), dropping: new Map(), poolTick: 0 };
+    const o = this.o = { W, D, DT, GAL, zOff, H, L, x0, z0, cols, rows, racks, liquid, rackGpu, rowGpu, p: { permit: 0, civil: 0, inter: 0, shell: 0, mep: 0, racks: 0, comm: 0 }, live: 0, installed: -1, inside: false, hidden: new Set(), assign: new Map(), dropping: new Map(), poolTick: 0, downRows: new Set(), faultRacks: new Set(), heat: 0, powerOut: false, gensOn: false, chillerDown: -1 };
     const M = (c, e = {}) => stdM(c, .85, .1, e);
     const mesh = (geo, mat, x, y, z, shadow = true, temp = 24) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = shadow; m.receiveShadow = true; m.userData.static = true; m.userData.temp = temp; g.add(m); return m; };
     const inst = (geo, mat, n, temp = 26, shadow = true) => { const im = new THREE.InstancedMesh(geo, mat, n); im.castShadow = shadow; im.receiveShadow = true; im.userData.static = true; im.userData.temp = temp; im.frustumCulled = false; im.visible = false; g.add(im); return im; };
@@ -1261,7 +1421,7 @@ class Site {
     o.rackMesh = inst(new THREE.BoxGeometry(1.05, 2.3, .75), stdM(0x1b1e22, .6, .25), racks, 24); o.rackMesh.visible = true; this.pickables.push(o.rackMesh);
     o.trayMesh = inst(new THREE.BoxGeometry(.88, .17, .62), stdM(0x3a4047, .45, .4, { emissive: 0x000000 }), racks * 8, 26); o.trayMesh.visible = true;
     o.ledMesh = inst(new THREE.BoxGeometry(.5, .04, .02), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), racks * 8, 36, false); o.ledMesh.visible = true;
-    o.colOff = new THREE.Color(0x151a20); o.gpuCol = {}; for (const k in GPU_COL) o.gpuCol[k] = new THREE.Color(GPU_COL[k]);
+    o.colOff = new THREE.Color(0x151a20); o.colRed = new THREE.Color(0xff3b3b); o.gpuCol = {}; for (const k in GPU_COL) o.gpuCol[k] = new THREE.Color(GPU_COL[k]);
     for (let i = 0; i < racks; i++) { o.rackMesh.setColorAt(i, new THREE.Color(0x1b1e22)); for (let j = 0; j < 8; j++) { o.trayMesh.setColorAt(i * 8 + j, new THREE.Color(0x3a4047)); o.ledMesh.setColorAt(i * 8 + j, o.colOff); } }
     o.rackMesh.instanceColor.needsUpdate = true; o.trayMesh.instanceColor.needsUpdate = true; o.ledMesh.instanceColor.needsUpdate = true;
     this.applyInstanceAll();
@@ -1311,12 +1471,12 @@ class Site {
     const crewPath = (from) => (o.p.shell > .3 ? aislePath(from) : perimeter());
     const nPeople = Math.min(40, Math.round(f.plan.people / 20)), nRobots = Math.min(30, Math.round(f.cfg.crew * f.cfg.robots / 100 / 20));
     o.crew = [];
-    for (let i = 0; i < nPeople; i++) { const m = makeHuman(0xf3a267, 0xf0b443); g.add(m); o.crew.push(new Walker(m, .11 + Math.random() * .03, crewPath)); }
-    for (let i = 0; i < nRobots; i++) { const m = makeRobot("build"); g.add(m); o.crew.push(new Walker(m, .2, crewPath)); }
+    for (let i = 0; i < nPeople; i++) { const m = makeHuman(0xf3a267, 0xf0b443); g.add(m); o.crew.push(new Walker(m, .06 + Math.random() * .02, crewPath)); }
+    for (let i = 0; i < nRobots; i++) { const m = makeRobot("build"); g.add(m); o.crew.push(new Walker(m, .08, crewPath)); }
     const nTech = Math.min(14, 2 + Math.round(f.plan.jobsPerm / 25)), nBots = Math.min(16, 3 + Math.round(racks / 400));
     o.staff = [];
-    for (let i = 0; i < nTech; i++) { const m = makeHuman(0x2f7fd8, 0xffffff); m.visible = false; g.add(m); o.staff.push(new Walker(m, .09 + Math.random() * .03, aislePath)); }
-    for (let i = 0; i < nBots; i++) { const m = makeRobot("floor"); m.visible = false; g.add(m); o.staff.push(new Walker(m, .14 + Math.random() * .05, aislePath)); }
+    for (let i = 0; i < nTech; i++) { const m = makeHuman(0x2f7fd8, 0xffffff); m.visible = false; g.add(m); o.staff.push(new Walker(m, .05 + Math.random() * .015, aislePath)); }
+    for (let i = 0; i < nBots; i++) { const m = makeRobot("floor"); m.visible = false; g.add(m); o.staff.push(new Walker(m, .04 + Math.random() * .012, aislePath)); }
     o.trucks = []; for (let i = 0; i < 2; i++) {
       const t = new THREE.Group(); const cab = new THREE.Mesh(new THREE.BoxGeometry(3, 2.6, 2.4), stdM(0xd8dde3, .5, .3)); cab.position.set(2.5, 1.6, 0); const box = new THREE.Mesh(new THREE.BoxGeometry(7, 3.2, 2.6), stdM(i ? 0x3fd8c6 : 0xf0b443, .6, .1)); box.position.set(-2.5, 1.9, 0);
       cab.castShadow = box.castShadow = true; cab.userData.static = box.userData.static = true; cab.userData.temp = 30; box.userData.temp = 28; t.add(cab, box); t.position.set(-200 + i * 180, 0, D / 2 + 30 + (i ? 2.5 : -2.5)); t.userData.dir = i ? -1 : 1; g.add(t); o.trucks.push(t);
@@ -1353,12 +1513,14 @@ class Site {
     for (const i of want) if (!o.assign.has(i)) {
       const rk = this.pool.find((p) => p.index < 0); if (!rk) break;
       const [x, z] = o.rackPos[i], r = Math.floor(i / o.cols), c = i % o.cols, gpu = o.rackGpu[i];
-      rk.setTarget(i, x, z, `${rowName(r)}-${String(c + 1).padStart(2, "0")}`, `${this.f.cfg.dens} kW · ${Math.floor(this.f.cfg.dens * 1000 * .7 / GPUS[gpu].w)}× ${GPU_NAME[gpu]}`, gpu);
-      rk.apply(live, load); if (this.thermal) rk.setThermal(true);
+      const G = GPUS[gpu], n = perRack(gpu, this.f.cfg.dens);
+      rk.setTarget(i, x, z, `${rowName(r)}-${String(c + 1).padStart(2, "0")}`, G.form === "nvl" ? `${G.node} · ${n} GPUs` : `${Math.max(1, Math.floor(n / 8))}× ${G.node} · ${n} GPUs`, gpu, G, n);
+      rk.apply(this.rackLive(i, live), load, o.faultRacks.has(i), o.heat); if (this.thermal) rk.setThermal(true);
       o.assign.set(i, rk); o.hidden.add(i); this.applyInstance(i); changed = true;
     }
     if (changed) this.flushInst();
   }
+  rackLive(i, live) { const o = this.o; return live && !o.downRows.has(Math.floor(i / o.cols)); }
   flushInst() { const o = this.o; o.rackMesh.instanceMatrix.needsUpdate = true; o.trayMesh.instanceMatrix.needsUpdate = true; o.ledMesh.instanceMatrix.needsUpdate = true; }
 
   // ------------------------------------------------------------ navigation
@@ -1383,7 +1545,7 @@ class Site {
     const c = rk.group.getWorldPosition(new THREE.Vector3());
     this.flyPath([
       { pos: c.clone().add(new THREE.Vector3(2.2, .9, 1.45)), target: c.clone().add(new THREE.Vector3(0, -.2, .2)), dur: 1.4, lift: .3, hold: .2, label: `1 / 2 · RACK ${rk.tag}` },
-      { pos: c.clone().add(new THREE.Vector3(2.2, .35, 1.5)), target: c.clone().add(new THREE.Vector3(0, -.1, -.1)), dur: 1.2, hold: .6, label: `2 / 2 · ${rk.tag} · ${rk.sub}`, onStart: () => rk.setOpen(true) },
+      { pos: c.clone().add(new THREE.Vector3(1.6, 1.75, 2.4)), target: c.clone().add(new THREE.Vector3(0, .55, .35)), dur: 1.4, hold: .6, label: `2 / 2 · ${rk.tag} · ${rk.sub}`, onStart: () => rk.setOpen(true) },
     ]);
     this.navState();
   }
@@ -1408,8 +1570,98 @@ class Site {
   writeRackTemps() {
     const o = this.o, load = this.f.plan.util, live = o.live;
     const rc = o.rackMesh.instanceColor.array, tc = o.trayMesh.instanceColor.array;
-    for (let i = 0; i < o.racks; i++) { const inst = i < o.installed; const tR = tnorm(inst ? 24 + live * 12 * load : 20); rc[i * 3] = rc[i * 3 + 1] = rc[i * 3 + 2] = tR; for (let j = 0; j < 8; j++) { const tT = tnorm(inst ? 26 + live * 36 * load * (.85 + .3 * (((i * 7919 + j * 131) % 13) / 13)) : 20); const k = (i * 8 + j) * 3; tc[k] = tc[k + 1] = tc[k + 2] = tT; } }
+    const rise = 1 + o.heat * .6;
+    for (let i = 0; i < o.racks; i++) { const inst = i < o.installed, lv = o.downRows.has(Math.floor(i / o.cols)) ? 0 : live, flt = o.faultRacks.has(i); const tR = tnorm(flt ? 40 : inst ? 24 + lv * 12 * load * rise : 20); rc[i * 3] = rc[i * 3 + 1] = rc[i * 3 + 2] = tR; for (let j = 0; j < 8; j++) { const tT = tnorm(flt ? 78 : inst ? 26 + lv * 36 * load * rise * (.85 + .3 * (((i * 7919 + j * 131) % 13) / 13)) : 20); const k = (i * 8 + j) * 3; tc[k] = tc[k + 1] = tc[k + 2] = tT; } }
     o.rackMesh.instanceColor.needsUpdate = true; o.trayMesh.instanceColor.needsUpdate = true;
+  }
+
+  // ------------------------------------------------------------ incidents: visuals, responders and repair progress
+  incWhere(inc) { const o = this.o; return inc.kind === "leak" ? `ROW ${rowName(inc.row)}` : inc.kind === "rack" ? `RACK ${rowName(Math.floor(inc.rack / o.cols))}-${String(inc.rack % o.cols + 1).padStart(2, "0")}` : inc.kind === "power" ? "UTILITY FEEDER" : "ROOF CHILLER"; }
+  incTarget(inc) {
+    const o = this.o;
+    if (inc.kind === "leak") { const v = this.inc.get(inc.id); return [v ? v.x : o.x0 + o.L / 2, o.z0 + inc.row * 2.6 + 1.3]; }
+    if (inc.kind === "rack") { const [x, z] = o.rackPos[inc.rack]; return [x, z + 1.3]; }
+    if (inc.kind === "power") return [-(o.W / 2 + 28), -o.D / 4];
+    const i = Math.max(0, o.chillerDown); return [-o.W / 2 + 6 + i * ((o.W - 12) / Math.max(1, o.roofUnits.length - 1)), o.zOff - o.DT / 2 + 3];
+  }
+  route(from, [tx, tz]) { const left = this.o.x0 - 2.5; return [[left, from.z], [left, tz], [tx, tz]]; }
+  gotoIncident(inc) { if (inc.kind === "leak") this.goRow(inc.row); else if (inc.kind === "rack") { const rk = this.o.assign.get(inc.rack); if (rk) this.select(rk); else this.goRow(Math.floor(inc.rack / this.o.cols)); } else this.goCampus(); }
+  addStatic(m, temp) { m.userData.static = true; m.userData.temp = temp; if (this.thermal) { m.userData.orig = m.material; m.material = tempMaterial(temp); } return m; }
+  marker(color) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); s.scale.setScalar(2.4); this.g.add(s); return s; }
+  baseMat(m) { return m.userData.orig || m.material; }
+  fixtureLight(hex, inten) { const fm = this.baseMat(this.o.fixtures); if (fm.emissive) { fm.emissive.setHex(hex); fm.emissiveIntensity = inten; } }
+  spawnVisual(inc) {
+    const o = this.o, v = { inc, kind: inc.kind, t: 0, objs: [], crew: [], arrived: false, dispatchT: 0 };
+    if (inc.kind === "leak") {
+      inc.row = Math.min(inc.row, o.rows - 1); v.x = o.x0 + 2 + Math.random() * Math.max(1, o.L - 4); v.z = o.z0 + inc.row * 2.6 + .5;
+      const pud = new THREE.Mesh(new THREE.CircleGeometry(1, 28), stdM(0x16304a, .08, .35, { transparent: true, opacity: .85 })); pud.rotation.x = -HALF_PI; pud.position.set(v.x, .012, v.z); pud.scale.setScalar(.05); pud.receiveShadow = true; this.addStatic(pud, 17); this.g.add(pud); v.puddle = pud; v.objs.push(pud);
+      v.drips = []; for (let k = 0; k < 5; k++) { const d = new THREE.Mesh(new THREE.SphereGeometry(.03, 6, 5), stdM(0x6fb3ff, .2, .2)); d.position.set(v.x + (Math.random() - .5) * .5, 2.7, v.z - .1 + Math.random() * .2); d.userData.v = Math.random(); this.g.add(d); v.drips.push(d); v.objs.push(d); }
+      o.downRows.add(inc.row); this.setRowLeds(inc.row); v.mark = this.marker(0x3aa0ff); v.mark.position.set(v.x, 2.9, v.z);
+    } else if (inc.kind === "rack") {
+      inc.rack = Math.min(inc.rack, Math.max(0, o.installed - 1)); o.faultRacks.add(inc.rack); const [x, z] = o.rackPos[inc.rack]; v.mark = this.marker(0xff5f6e); v.mark.position.set(x, 2.9, z);
+    } else if (inc.kind === "power") {
+      o.powerOut = true; o.gensOn = false; v.mark = this.marker(0xff5f6e); v.mark.position.set(-(o.W / 2 + 34), 8, -o.D / 4);
+      v.smoke = []; for (const gn of o.gens) for (let k = 0; k < 2; k++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0x7a8088, transparent: true, opacity: 0, depthWrite: false })); s.scale.setScalar(2); s.position.copy(gn.position).add(new THREE.Vector3(0, 5.5 + k * 1.5, -3)); s.userData.gn = gn; s.userData.k = k; this.g.add(s); v.smoke.push(s); v.objs.push(s); }
+    } else {
+      o.chillerDown = Math.floor(Math.random() * o.roofUnits.length); const u = o.roofUnits[o.chillerDown]; const um = this.baseMat(u); if (um.emissive) { um.emissive.setHex(0xff2a2a); um.emissiveIntensity = .9; } v.unit = u; v.mark = this.marker(0xff5f6e); v.mark.position.copy(u.position).add(new THREE.Vector3(0, 2.2, 0));
+    }
+    v.objs.push(v.mark); if (this.thermal) this.writeRackTemps();
+    return v;
+  }
+  removeVisual(v) {
+    const o = this.o; for (const m of v.objs) { this.g.remove(m); if (m.material && !m.userData.shared) m.material.dispose(); }
+    for (const w of v.crew) w.release();
+    if (v.kind === "leak") o.downRows.delete(v.inc.row);
+    else if (v.kind === "rack") o.faultRacks.delete(v.inc.rack);
+    else if (v.kind === "power") { o.powerOut = false; o.gensOn = false; this.fixtureLight(0xffffff, 2); for (const gn of o.gens) { const sm = this.baseMat(gn.children[1]); if (sm.emissive) sm.emissiveIntensity = 0; } }
+    else { if (v.unit) { const um = this.baseMat(v.unit); if (um.emissive) um.emissiveIntensity = 0; } o.chillerDown = -1; }
+    if (this.thermal) this.writeRackTemps();
+  }
+  setRowLeds(r) { const o = this.o; for (let i = r * o.cols; i < Math.min(o.racks, (r + 1) * o.cols); i++) for (let j = 0; j < 8; j++) o.ledMesh.setColorAt(i * 8 + j, o.colOff); o.ledMesh.instanceColor.needsUpdate = true; }
+  dispatchVisual(v) {
+    const free = this.o.staff.filter((w) => !w.held && w.m.visible); const techs = free.filter((w) => !w.m.userData.lamp).slice(0, 2), bots = free.filter((w) => w.m.userData.lamp).slice(0, 1);
+    const tgt = this.incTarget(v.inc);
+    [...techs, ...bots].forEach((w, k) => { const off = [[.6, .3], [-.6, .3], [0, -.5]][k]; w.assign(this.route(w.m.position, [tgt[0] + off[0], tgt[1] + off[1]]), v.inc.id); v.crew.push(w); });
+    v.dispatchT = 0; if (!v.crew.length) v.arrived = true;
+    if (v.kind === "leak") {
+      for (let k = 0; k < 4; k++) { const a = k / 4 * 6.283; const c = new THREE.Mesh(new THREE.ConeGeometry(.16, .5, 10), stdM(0xff7a1a, .6, 0)); c.position.set(v.x + Math.cos(a) * 1.6, .25, v.z + Math.sin(a) * 1.6); c.castShadow = true; this.addStatic(c, 24); this.g.add(c); v.objs.push(c); }
+      const vac = new THREE.Mesh(new THREE.CylinderGeometry(.24, .26, .6, 14), stdM(0xf0c23b, .5, .1)); vac.position.set(v.x + 1.1, .3, v.z + .9); vac.castShadow = true; this.addStatic(vac, 30); this.g.add(vac); v.objs.push(vac);
+    }
+  }
+  syncIncidents(f, dt, t, staffed) {
+    const o = this.o, list = f.incidents || [], seen = new Set();
+    for (const inc of list) {
+      seen.add(inc.id); inc.viewed = true;
+      let v = this.inc.get(inc.id); if (!v) { v = this.spawnVisual(inc); this.inc.set(inc.id, v); }
+      v.t += dt;
+      if (inc.dispatched && !v.crew.length && !v.arrived && staffed) this.dispatchVisual(v);
+      if (v.crew.length && !v.arrived) { v.dispatchT += dt; v.arrived = v.crew.every((w) => w.arrived) || v.dispatchT > 26; }
+      if (inc.dispatched && (v.arrived || !staffed) && inc.progress < 1) { inc.progress = Math.min(1, inc.progress + dt / INC.defs[inc.kind].repairSec); if (inc.progress >= 1) { INC.resolve(f, inc); continue; } }
+      if (v.kind === "leak") {
+        const grow = inc.dispatched ? Math.max(.3, 2.2 * (1 - inc.progress)) : Math.min(2.2, .05 + v.t * .05); v.puddle.scale.setScalar(grow);
+        for (const d of v.drips) { if (inc.progress > .5) { d.visible = false; continue; } d.userData.v += dt * 1.6; if (d.userData.v > 1) d.userData.v = 0; d.position.y = 2.7 - d.userData.v * d.userData.v * 2.7; }
+      } else if (v.kind === "power") {
+        if (!o.gensOn && v.t > 7) { o.gensOn = true; for (const gn of o.gens) { const sm = this.baseMat(gn.children[1]); if (sm.emissive) { sm.emissive.setHex(0xff6a1a); sm.emissiveIntensity = .8; } } }
+        this.fixtureLight(o.gensOn ? 0xffd9a8 : 0xff2a2a, o.gensOn ? 1.2 : .25);
+        for (const s of v.smoke) { if (!o.gensOn || !s.userData.gn.visible) { s.material.opacity = 0; continue; } const u = (t * .5 + s.userData.k * .5) % 1; s.position.y = 5.5 + u * 5; s.material.opacity = .22 * (1 - u); s.scale.setScalar(1.5 + u * 3); }
+      } else if (v.kind === "chiller") {
+        o.heat = Math.min(1, Math.max(0, o.heat + dt * (inc.progress >= .75 ? -.08 : .02))); const um = this.baseMat(v.unit); if (um.emissive) um.emissiveIntensity = inc.progress >= .75 ? 0 : .5 + .5 * Math.sin(t * 5);
+      }
+      if (v.mark) { v.mark.material.opacity = .5 + .4 * Math.sin(t * 4); v.mark.scale.setScalar(2 + .4 * Math.sin(t * 4)); }
+    }
+    for (const [id, v] of this.inc) if (!seen.has(id)) { this.removeVisual(v); this.inc.delete(id); }
+    if (o.chillerDown < 0 && o.heat > 0) o.heat = Math.max(0, o.heat - dt * .08);
+    this.renderIncidentHud(f, staffed);
+  }
+  renderIncidentHud(f, staffed) {
+    const el = $id("incList"), list = f.incidents || []; const key = list.map((i) => `${i.id}:${i.dispatched ? 1 : 0}:${Math.round(i.progress * 40)}:${(this.inc.get(i.id) || {}).arrived ? 1 : 0}`).join("|") + (staffed ? "L" : "");
+    if (key === this._incKey) return; this._incKey = key;
+    $id("hudInc").classList.toggle("off", !staffed);
+    el.innerHTML = list.length ? list.map((inc) => {
+      const D = INC.defs[inc.kind], v = this.inc.get(inc.id), step = Math.min(D.steps.length - 1, Math.floor(inc.progress * D.steps.length));
+      const status = !inc.dispatched ? "unattended · site crews respond within a month" : v && !v.arrived && staffed ? "crew en route" : `${step + 1}/${D.steps.length} · ${D.steps[step]}`;
+      return `<div class="inc${inc.dispatched ? " on" : ""}"><div class="inc-h"><b data-goto="${inc.id}">${D.name} · ${this.incWhere(inc)}</b>${inc.dispatched ? "" : `<button type="button" data-dispatch="${inc.id}">Dispatch crew</button>`}</div><span>${status}</span><div class="bar"><i style="width:${Math.round(inc.progress * 100)}%"></i></div></div>`;
+    }).join("") : `<span class="none">${staffed ? "No active incidents. Simulate one to watch it get found and fixed." : "Incidents can be simulated once the site is live."}</span>`;
   }
 
   // ------------------------------------------------------------ per frame
@@ -1431,7 +1683,7 @@ class Site {
     o.roof.visible = p.shell > .99 && !o.inside; o.edges.visible = shellUp; o.edges.scale.y = Math.max(.001, p.shell); o.edges.position.y = H * p.shell / 2;
     o.roofUnits.forEach((c, i) => c.visible = p.shell > .99 && !o.inside && p.mep > i / o.roofUnits.length);
     o.towers.forEach((tw, i) => tw.visible = p.mep > i / o.towers.length);
-    o.fans.forEach((fn, i) => { fn.visible = p.mep > i / o.fans.length; if (fn.material.emissiveIntensity != null) fn.material.emissiveIntensity = o.live * .9; fn.rotation.y += o.live * .3; });
+    o.fans.forEach((fn, i) => { fn.visible = p.mep > i / o.fans.length; if (fn.material.emissiveIntensity != null) fn.material.emissiveIntensity = o.live * .9; fn.rotation.y += o.live * .3 * (o.chillerDown >= 0 ? 0 : 1); });
     const fit = p.mep; o.trays.visible = fit > .1; o.busway.visible = fit > .25; o.pipes.visible = o.pipesHot.visible = fit > .35; o.cdus.visible = fit > .45; o.pdus.visible = fit > .4; o.fixtures.visible = fit > .6; o.gal.visible = fit > .15;
     o.crahs.forEach((u, i) => u.visible = fit > .3 + .6 * i / o.crahs.length);
     // racks install in order; trays drop into place
@@ -1445,20 +1697,21 @@ class Site {
     if (o.dropping.size) { for (const [i, t0] of o.dropping) { const u = (t - t0) / .7; if (u >= 1) { o.dropping.delete(i); this.applyInstance(i); } else this.applyInstance(i, 1.6 * (1 - ease(u))); } this.flushInst(); }
     // LEDs blink per GPU color once live
     if (!this.thermal && o.live > .02 && o.installed > 0) {
-      const n = Math.min(o.installed * 8, 240); for (let k = 0; k < n; k++) { const idx = Math.floor(Math.random() * o.installed * 8); const i = Math.floor(idx / 8); o.ledMesh.setColorAt(idx, Math.random() < .25 ? o.colOff : o.gpuCol[o.rackGpu[i]]); }
+      const n = Math.min(o.installed * 8, 240); for (let k = 0; k < n; k++) { const idx = Math.floor(Math.random() * o.installed * 8); const i = Math.floor(idx / 8); if (o.downRows.has(Math.floor(i / o.cols))) { o.ledMesh.setColorAt(idx, o.colOff); continue; } if (o.faultRacks.has(i)) { o.ledMesh.setColorAt(idx, Math.random() < .8 ? o.colOff : o.colRed); continue; } o.ledMesh.setColorAt(idx, Math.random() < .25 ? o.colOff : o.gpuCol[o.rackGpu[i]]); }
       o.ledMesh.instanceColor.needsUpdate = true; o.trayMesh.material.emissiveIntensity = 0;
     } else if (!this.thermal && o.lastLive && o.live <= .02) { for (let k = 0; k < o.installed * 8; k++) o.ledMesh.setColorAt(k, o.colOff); o.ledMesh.instanceColor.needsUpdate = true; }
     o.lastLive = o.live > .02;
     const load = f.plan.util;
     if (o.poolTick <= 0) { o.poolTick = .4; this.updatePool(live, load); } else o.poolTick -= dt;
-    for (const rk of this.pool) if (rk.index >= 0) { if (rk.state.live !== live) rk.apply(live, load); rk.update(dt, t); }
-    o.glow.intensity = o.inside ? 0 : o.live * 120;
+    for (const rk of this.pool) if (rk.index >= 0) { const rl = this.rackLive(rk.index, live), flt = o.faultRacks.has(rk.index); if (rk.state.live !== rl || rk.fault !== flt || Math.abs((rk.state.heat || 0) - o.heat) > .05) rk.apply(rl, load, flt, o.heat); rk.update(dt, t); }
+    o.glow.intensity = o.inside ? 0 : o.live * 120 * (o.powerOut && !o.gensOn ? .1 : 1);
     const craneOn = p.civil > .2 && p.shell < .995; o.crane.visible = craneOn;
     if (craneOn) { o.jib.rotation.y = Math.sin(t * .25) * 1.2; o.hook.position.y = -6 - Math.abs(Math.sin(t * .5)) * H * .8; o.hookLine.geometry.setFromPoints([new THREE.Vector3(-W * .5, 0, 0), new THREE.Vector3(-W * .5, o.hook.position.y, 0)]); }
     const working = !live && p.permit > .5;
     for (const c of o.crew) { c.m.visible = working; if (working) c.update(dt, t); }
     const staffed = live && p.comm > .5;
     for (const s of o.staff) { s.m.visible = staffed; if (staffed) s.update(dt, t); }
+    this.syncIncidents(f, dt, t, staffed);
     const trucksOn = !live && (p.civil > 0 || p.racks > 0) && p.racks < 1;
     for (const tr of o.trucks) { tr.visible = trucksOn; if (!trucksOn) continue; tr.position.x += tr.userData.dir * .6; if (tr.position.x > 300) tr.position.x = -300; if (tr.position.x < -300) tr.position.x = 300; tr.rotation.y = tr.userData.dir > 0 ? 0 : Math.PI; }
     if (o.gal.visible && !this.thermal) o.props.update(dt, t);
@@ -1485,8 +1738,8 @@ class Site {
 let site = null;
 return {
   T: { fid: null },
-  ensure(f) { if (!site) site = new Site($id("site3dhost")); if (site.fid !== f.id) { site.build(f); this.T.fid = f.id; } },
+  ensure(f) { if (!site) { site = new Site($id("site3dhost")); if (typeof window !== "undefined") window.__atlasSite = site; } if (site.fid !== f.id) { site.build(f); this.T.fid = f.id; } },
   frame() { if (site) site.frame(); },
-  dispose() { if (site) site.dispose(); site = null; },
+  dispose() { if (site) { if (site.f) for (const i of site.f.incidents || []) i.viewed = false; site.dispose(); } site = null; },
 };
 }

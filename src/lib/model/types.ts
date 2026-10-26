@@ -4,7 +4,7 @@ export const ENERGY_SOURCES: EnergySource[] = ["grid", "gas", "solar", "wind", "
 /** Shares of facility power supplied by each source. They sum to 1. */
 export type EnergyMix = Record<EnergySource, number>;
 
-export type GpuClass = "h100" | "b200" | "gb300" | "next";
+export type GpuClass = "h100" | "h200" | "b200" | "gb200" | "gb300" | "next";
 
 export interface SiteSpec {
   itMw: number;          // IT load in MW

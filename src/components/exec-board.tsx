@@ -11,7 +11,7 @@ import { SimpleBars } from "./charts";
 export function ExecBoard({ sites, conditions }: { sites: SiteBundle[]; conditions: Array<{ id: string; siteId: string; siteName: string; conditions: string[] }> }) {
   const [crew, setCrew] = useState(0);        // % change in crew size
   const [robots, setRobots] = useState<number | null>(null); // override automation share, null = as planned
-  const [gpu, setGpu] = useState<"" | "h100" | "b200" | "gb300" | "next">("");
+  const [gpu, setGpu] = useState<"" | "h100" | "h200" | "b200" | "gb200" | "gb300" | "next">("");
   const [usePlan, setUsePlan] = useState(false);
   const [pipelineOnly, setPipelineOnly] = useState(false);
   const router = useRouter();
@@ -50,7 +50,7 @@ export function ExecBoard({ sites, conditions }: { sites: SiteBundle[]; conditio
       <div className="card p-4 flex flex-wrap gap-5 items-end">
         <Slider label="Crew size" value={crew} min={-50} max={100} step={10} format={(v) => `${v > 0 ? "+" : ""}${v}%`} onChange={setCrew} />
         <Slider label="Automation share" value={robots === null ? -1 : Math.round(robots * 100)} min={-1} max={100} step={5} format={(v) => (v < 0 ? "as planned" : `${v}%`)} onChange={(v) => setRobots(v < 0 ? null : v / 100)} />
-        <label className="flex flex-col gap-1 text-[12px]"><span className="eyebrow">GPU class</span><select value={gpu} onChange={(e) => setGpu(e.target.value as typeof gpu)} className="!w-40"><option value="">as planned</option><option value="h100">H100</option><option value="b200">B200</option><option value="gb300">GB300</option><option value="next">Next-gen</option></select></label>
+        <label className="flex flex-col gap-1 text-[12px]"><span className="eyebrow">GPU class</span><select value={gpu} onChange={(e) => setGpu(e.target.value as typeof gpu)} className="!w-40"><option value="">as planned</option><option value="h100">H100</option><option value="h200">H200</option><option value="b200">B200</option><option value="gb200">GB200 NVL72</option><option value="gb300">GB300 NVL72</option><option value="next">Rubin</option></select></label>
         <label className="flex items-center gap-2 text-[12px] pb-1"><input type="checkbox" checked={usePlan} onChange={(e) => setUsePlan(e.target.checked)} /> Advisor's plan where one exists</label>
         <label className="flex items-center gap-2 text-[12px] pb-1"><input type="checkbox" checked={pipelineOnly} onChange={(e) => setPipelineOnly(e.target.checked)} /> Pipeline only</label>
         <button className="btn !py-1 text-xs" onClick={() => { setCrew(0); setRobots(null); setGpu(""); setUsePlan(false); setPipelineOnly(false); }}>Reset</button>
