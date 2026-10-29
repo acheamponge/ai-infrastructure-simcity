@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const OWNED = [
-  "MODEL_API_KEY", "META_BASE_URL", "META_MODEL_RESEARCH", "META_MODEL_ADVISOR", "META_MODEL_PLANNER", "LLM_PROVIDER",
+  "MODEL_API_KEY_MUSE", "META_BASE_URL", "META_MODEL_RESEARCH", "META_MODEL_ADVISOR", "META_MODEL_PLANNER", "LLM_PROVIDER",
   "CRUSOE_API_KEY", "CRUSOE_BASE_URL", "CRUSOE_MODEL_RESEARCH", "CRUSOE_MODEL_ADVISOR",
   "TAVILY_API_KEY", "ATLAS_AGENT_MODE", "DATABASE_URL",
 ];
@@ -40,7 +40,7 @@ export const env = {
   databaseUrl: get("DATABASE_URL") ?? "postgresql://atlas:atlas@localhost:5433/atlas?schema=public",
   /** Meta Model API (Muse Spark, Muse Wonder, SAM 3.1). OpenAI-compatible chat completions plus the Responses API for SAM. */
   meta: {
-    key: get("MODEL_API_KEY") ?? "",
+    key: get("MODEL_API_KEY_MUSE") ?? "",
     baseUrl: (get("META_BASE_URL") ?? "https://api.meta.ai/v1").replace(/\/+$/, ""),
     modelResearch: get("META_MODEL_RESEARCH") ?? "muse-spark-1.3",
     modelAdvisor: get("META_MODEL_ADVISOR") ?? "muse-spark-1.3",
@@ -57,7 +57,7 @@ export const env = {
   tavilyKey: get("TAVILY_API_KEY") ?? "",
   /** Where the keys came from, for the health page. */
   crusoeKeySource: fromFile.CRUSOE_API_KEY ? ".env" : process.env.CRUSOE_API_KEY ? "shell environment" : "unset",
-  metaKeySource: fromFile.MODEL_API_KEY ? ".env" : process.env.MODEL_API_KEY ? "shell environment" : "unset",
+  metaKeySource: fromFile.MODEL_API_KEY_MUSE ? ".env" : process.env.MODEL_API_KEY_MUSE ? "shell environment" : "unset",
   /** Which provider answers first. Muse when a Meta key exists, otherwise Crusoe; LLM_PROVIDER forces it. */
   get llmProvider(): LlmProvider {
     const forced = get("LLM_PROVIDER");

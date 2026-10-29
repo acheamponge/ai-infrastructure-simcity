@@ -87,7 +87,7 @@ const retriable = (e: unknown) => !(e instanceof ProviderError) || e.status === 
 /** Chat with the primary provider for the role, falling back to the other provider when it cannot answer. */
 export async function chat(role: Role, messages: ChatMessage[], opts: ChatOptions = {}): Promise<ChatResult> {
   const ps = providers();
-  if (!ps.length) throw new Error("No inference provider configured: set MODEL_API_KEY (Meta) or CRUSOE_API_KEY in .env");
+  if (!ps.length) throw new Error("No inference provider configured: set MODEL_API_KEY_MUSE (Meta) or CRUSOE_API_KEY in .env");
   let last: unknown = null;
   for (const p of ps) {
     try {

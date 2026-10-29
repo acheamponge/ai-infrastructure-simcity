@@ -60,7 +60,7 @@ const num = (v: unknown) => (typeof v === "number" ? v : typeof v === "string" ?
 
 /** One SAM pass: every match of a noun phrase in the image, with areas in square metres and distance to the image centre. */
 export async function segment(imageDataUrl: string, concept: string, spanM: number, px: number): Promise<SegObject[]> {
-  if (!env.meta.key) throw new Error("MODEL_API_KEY is not set; SAM runs on the Meta Model API");
+  if (!env.meta.key) throw new Error("MODEL_API_KEY_MUSE is not set; SAM runs on the Meta Model API");
   const r = await fetch(`${env.meta.baseUrl}/responses`, {
     method: "POST", headers: { "content-type": "application/json", accept: "text/event-stream", authorization: `Bearer ${env.meta.key}` },
     body: JSON.stringify({ model: env.meta.samModel, stream: true, metadata: { include_confidence: "true" }, input: [{ type: "message", role: "user", content: [{ type: "input_text", text: concept }, { type: "input_image", image_url: imageDataUrl }] }] }),
