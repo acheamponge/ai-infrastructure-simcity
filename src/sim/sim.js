@@ -17,6 +17,9 @@ const ENERGY={
  geo:{name:'Geothermal',capex:r=>r.geo?5:12,lead:r=>r.geo?14:26,opex:r=>0.024,carbon:r=>40,cap:r=>0.95,note:'Excellent where the ground is hot. Ruinous where it is not.'},
  flare:{name:'Flared gas capture',capex:r=>1.0,lead:r=>6,opex:r=>0.012,carbon:r=>380,cap:r=>0.88,note:'Burns gas that was being flared anyway. Only works in producing basins.'},
 };
+// the clock starts at the first calendar month after today, so a plan always begins in the near future
+const EPOCH=(()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth()+1,1)})();
+const UNLOCK_MONTH=12,UNLOCK_YEAR=new Date(EPOCH.getFullYear(),EPOCH.getMonth()+UNLOCK_MONTH,1).getFullYear();
 // form: hgx = 8-GPU HGX nodes in a standard rack · nvl = rack-scale NVL72 (18 compute trays + 9 NVLink switch trays, liquid only)
 const GPUS={
  h100:{name:'H100',w:700,cost:25000,perf:1,rate:2.0,form:'hgx',node:'HGX H100',hbm:'80 GB HBM3',u:6},
@@ -24,7 +27,7 @@ const GPUS={
  b200:{name:'B200',w:1000,cost:38000,perf:2.2,rate:3.2,form:'hgx',node:'HGX B200',hbm:'180 GB HBM3e',u:10},
  gb200:{name:'GB200',w:1200,cost:45000,perf:2.8,rate:3.8,form:'nvl',node:'GB200 NVL72',hbm:'186 GB HBM3e'},
  gb300:{name:'GB300',w:1400,cost:55000,perf:3.5,rate:4.5,form:'nvl',node:'GB300 NVL72',hbm:'288 GB HBM3e'},
- next:{name:'Rubin (unlocks 2028)',w:1800,cost:75000,perf:5.5,rate:6.5,locked:true,form:'nvl',node:'Rubin NVL144',hbm:'288 GB HBM4'},
+ next:{name:'Rubin (unlocks '+UNLOCK_YEAR+')',w:1800,cost:75000,perf:5.5,rate:6.5,locked:true,form:'nvl',node:'Rubin NVL144',hbm:'288 GB HBM4'},
 };
 // GPUs per rack: HGX nodes fill the power budget; NVL racks ship as 72 (full), 36 (half) or an air-cooled 16-GPU partial
 function perRackFor(k,dens){const G=GPUS[k];if(G.form==='nvl')return dens>=130?72:dens>=80?36:16;return Math.floor(dens*1000*0.7/G.w)}
@@ -103,7 +106,7 @@ const R=id=>S.regions.find(r=>r.id===id);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const fmtM=x=>{const a=Math.abs(x),s=x<0?'-':'';if(a>=1e9)return s+'$'+(a/1e9).toFixed(2)+'B';if(a>=1e6)return s+'$'+(a/1e6).toFixed(a>=1e8?0:1)+'M';if(a>=1e3)return s+'$'+(a/1e3).toFixed(0)+'k';return s+'$'+a.toFixed(0)};
 const fmtN=x=>x.toLocaleString('en-US',{maximumFractionDigits:0});
-const monthName=m=>{const d=new Date(2027,m,1);return d.toLocaleString('en-US',{month:'short'})+' '+d.getFullYear()};
+const monthName=m=>{const d=new Date(EPOCH.getFullYear(),EPOCH.getMonth()+m,1);return d.toLocaleString('en-US',{month:'short'})+' '+d.getFullYear()};
 
 // ---------- the model ----------
 function makePlan(cfg,r){
@@ -252,7 +255,7 @@ function tick(){
   }
   S.priceIndex*=0.991;
   S.demand=1+0.012*S.month;
-  if(S.month===12&&!S.unlockedNext){S.unlockedNext=true;GPUS.next.locked=false;GPUS.next.name='Rubin';for(const k in GPUS)if(k!=='next')GPUS[k].cost*=0.8;log('A new GPU generation shipped. Older parts are 20% cheaper; Rubin NVL144 is now orderable.','ev');fillSelects()}
+  if(S.month===UNLOCK_MONTH&&!S.unlockedNext){S.unlockedNext=true;GPUS.next.locked=false;GPUS.next.name='Rubin';for(const k in GPUS)if(k!=='next')GPUS[k].cost*=0.8;log('A new GPU generation shipped. Older parts are 20% cheaper; Rubin NVL144 is now orderable.','ev');fillSelects()}
   if(S.stress)events();
   render();
 }
@@ -300,7 +303,7 @@ function fillSelects(){
   const e=$('energy');const ev=e.value||S.cfg.energy;
   e.innerHTML=Object.entries(ENERGY).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join('');
   e.value=ev;
-  const nx=$('gm-next');if(nx){nx.disabled=!!GPUS.next.locked;$('gm-next-note').textContent=GPUS.next.locked?'locked until 2028':'available'}
+  const nx=$('gm-next');if(nx){nx.disabled=!!GPUS.next.locked;$('gm-next-note').textContent=GPUS.next.locked?'locked until '+UNLOCK_YEAR:'available'}
 }
 function readCfg(){
   const gm={};for(const k in GPUS)gm[k]=+$('gm-'+k).value;

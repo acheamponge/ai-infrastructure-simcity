@@ -6,7 +6,7 @@ export const GPUS: Record<GpuClass, { label: string; watts: number; costUsd: num
   b200: { label: "B200 (HGX)", watts: 1000, costUsd: 38000, perf: 2.2, rateUsdHr: 3.2 },
   gb200: { label: "GB200 NVL72", watts: 1200, costUsd: 45000, perf: 2.8, rateUsdHr: 3.8 },
   gb300: { label: "GB300 NVL72", watts: 1400, costUsd: 55000, perf: 3.5, rateUsdHr: 4.5 },
-  next: { label: "Rubin NVL144 (2028)", watts: 1800, costUsd: 75000, perf: 5.5, rateUsdHr: 6.5 },
+  next: { label: "Rubin NVL144 (next generation)", watts: 1800, costUsd: 75000, perf: 5.5, rateUsdHr: 6.5 },
 };
 
 export const DENSITY: Record<40 | 80 | 130, { cooling: "air" | "liquid"; basePue: number; label: string }> = {
