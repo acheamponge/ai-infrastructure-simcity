@@ -140,3 +140,9 @@ export async function footprintCheck(lat: number, lon: number, opts: { concept?:
   const totalAreaM2 = objects.reduce((a, o) => a + o.areaM2, 0);
   return { image: img.dataUrl, width: img.width, height: img.height, spanM, metersPerPixel: spanM / px, concept, objects, totalAreaM2, mwEquivalent: totalAreaM2 / 1000, model: env.meta.samModel, tookMs: Date.now() - t0, attribution: ATTRIBUTION };
 }
+
+/** The parts of a measurement worth keeping: the view and every mask, without rasters. About 150 KB per site. */
+export interface StoredLayers { image: string; width: number; height: number; spanM: number; model: string; measuredAt: string; attribution: string; layers: Array<{ key: LayerKey; label: string; color: string; concept: string; count: number; areaM2: number; nearestM: number | null; objects: Array<{ id: string; path: string; offset: { x: number; y: number }; areaM2: number; confidence: number | null }> }> }
+export function toStoredLayers(m: SiteMeasurement): StoredLayers {
+  return { image: m.image, width: m.width, height: m.height, spanM: m.spanM, model: m.model, measuredAt: m.measuredAt, attribution: m.attribution, layers: m.layers.map((l) => ({ key: l.key, label: l.label, color: l.color, concept: l.concept, count: l.count, areaM2: l.areaM2, nearestM: l.nearestM, objects: l.objects.slice(0, 60).map((o) => ({ id: o.id, path: o.path, offset: o.offset, areaM2: o.areaM2, confidence: o.confidence })) })) };
+}

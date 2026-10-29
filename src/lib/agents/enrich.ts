@@ -7,7 +7,7 @@ import { startRun } from "./runs";
 import { EnrichOutput, type EnrichOutputT } from "./schemas";
 import { fixtureEnrich } from "./fixtures";
 import { ensureProfile, reestimateSite } from "../sites";
-import { measureSite } from "../vision/sam";
+import { measureSite, toStoredLayers } from "../vision/sam";
 
 const LIVE = () => env.agentMode === "live";
 
@@ -58,7 +58,7 @@ export async function runEnrich(siteId: string) {
       try {
         await run.log("measuring the site with SAM 3.1 over satellite imagery");
         const m = await measureSite(site.lat, site.lon);
-        await prisma.regionProfile.update({ where: { siteId }, data: { measuredBuiltHa: m.summary.builtHa, measuredOpenHa: m.summary.openHa, measuredWaterHa: m.summary.waterHa, measuredWaterNearM: m.summary.waterNearM, measuredSolarHa: m.summary.solarHa, measuredSpanM: m.spanM, measuredBy: m.model, measuredAt: new Date(), sources: [...sources, { title: `${m.model} segmentation of Esri World Imagery`, url: "https://dev.meta.ai/docs/sam/overview" }] as unknown as Prisma.InputJsonValue } });
+        await prisma.regionProfile.update({ where: { siteId }, data: { measuredBuiltHa: m.summary.builtHa, measuredOpenHa: m.summary.openHa, measuredWaterHa: m.summary.waterHa, measuredWaterNearM: m.summary.waterNearM, measuredSolarHa: m.summary.solarHa, measuredSpanM: m.spanM, measuredBy: m.model, measuredAt: new Date(), measuredLayers: toStoredLayers(m) as unknown as Prisma.InputJsonValue, sources: [...sources, { title: `${m.model} segmentation of Esri World Imagery`, url: "https://dev.meta.ai/docs/sam/overview" }] as unknown as Prisma.InputJsonValue } });
         patch.measured = m.summary;
         await run.log(`measured ${m.summary.openHa.toFixed(0)} ha open land, ${m.summary.builtHa.toFixed(0)} ha built, ${m.summary.waterHa.toFixed(0)} ha water, ${m.summary.solarHa.toFixed(0)} ha solar in ${(m.tookMs / 1000).toFixed(0)} s`);
       } catch (err) { await run.log(`SAM measurement skipped: ${err instanceof Error ? err.message : String(err)}`); }

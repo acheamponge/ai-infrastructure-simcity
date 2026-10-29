@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { SiteMeasurement, LayerKey } from "@/lib/vision/sam";
+import type { SiteMeasurement, LayerKey, StoredLayers } from "@/lib/vision/sam";
 
 interface Measured { builtHa: number; openHa: number; waterHa: number; waterNearM: number | null; solarHa: number; spanM: number; by: string; at: string | null }
 interface Scores { composite: number; environment: number; economic: number; community: number; capexUsd: number; flags: string[] }
@@ -10,7 +10,7 @@ interface Outcome { measurement: SiteMeasurement; before: Scores | null; after: 
 const fmt = (n: number | null | undefined, d = 0) => (n == null ? "–" : n.toLocaleString(undefined, { maximumFractionDigits: d }));
 
 /** The SAM moment: look at the site, measure land, water, solar and buildings, and feed them into the estimate. */
-export function SiteMeasure({ siteId, capacityMw, measured }: { siteId: string; capacityMw: number | null; measured: Measured | null }) {
+export function SiteMeasure({ siteId, capacityMw, measured, stored }: { siteId: string; capacityMw: number | null; measured: Measured | null; stored: StoredLayers | null }) {
   const router = useRouter();
   const [out, setOut] = useState<Outcome | null>(null);
   const [busy, setBusy] = useState(false);
@@ -31,6 +31,7 @@ export function SiteMeasure({ siteId, capacityMw, measured }: { siteId: string; 
   }
 
   const m = out?.measurement; const s = m ? { ...m.summary, spanM: m.spanM } : measured;
+  const view: SiteMeasurement | StoredLayers | null = m ?? stored;
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-end gap-3 text-[12px]">
@@ -58,23 +59,23 @@ export function SiteMeasure({ siteId, capacityMw, measured }: { siteId: string; 
           <span className="text-slate-2">Capex ${fmt(out.before.capexUsd / 1e9, 2)}B → ${fmt(out.after.capexUsd / 1e9, 2)}B</span>
         </div>
       )}
-      {m && (
+      {view && (
         <div className="grid lg:grid-cols-[minmax(0,1fr)_260px] gap-4">
-          <div className="relative rounded-lg overflow-hidden border border-line bg-black" style={{ aspectRatio: `${m.width} / ${m.height}` }}>
-            <img src={m.image} alt="Satellite view of the site" className="absolute inset-0 w-full h-full object-cover" />
-            <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${m.width} ${m.height}`} preserveAspectRatio="none">
-              {m.layers.filter((l) => show[l.key]).map((l) => l.objects.map((o) => o.path && <g key={`${l.key}-${o.id}`} transform={`translate(${o.offset.x} ${o.offset.y})`}><path d={o.path} fill={l.color + "66"} stroke={l.color} strokeWidth={1.2} vectorEffect="non-scaling-stroke"><title>{l.label} · {fmt(o.areaM2 / 1e4, 1)} ha</title></path></g>))}
-              <circle cx={m.width / 2} cy={m.height / 2} r={6} fill="none" stroke="#fff" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+          <div className="relative rounded-lg overflow-hidden border border-line bg-black" style={{ aspectRatio: `${view.width} / ${view.height}` }}>
+            <img src={view.image} alt="Satellite view of the site" className="absolute inset-0 w-full h-full object-cover" />
+            <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${view.width} ${view.height}`} preserveAspectRatio="none">
+              {view.layers.filter((l) => show[l.key]).map((l) => l.objects.map((o) => o.path && <g key={`${l.key}-${o.id}`} transform={`translate(${o.offset.x} ${o.offset.y})`}><path d={o.path} fill={l.color + "66"} stroke={l.color} strokeWidth={1.2} vectorEffect="non-scaling-stroke"><title>{l.label} · {fmt(o.areaM2 / 1e4, 1)} ha</title></path></g>))}
+              <circle cx={view.width / 2} cy={view.height / 2} r={6} fill="none" stroke="#fff" strokeWidth={2} vectorEffect="non-scaling-stroke" />
             </svg>
-            <div className="absolute bottom-1 right-2 text-[9px] text-white/70">{m.attribution}</div>
+            <div className="absolute bottom-1 right-2 text-[9px] text-white/70">{view.attribution}</div>
           </div>
           <div className="space-y-1.5 text-[12px]">
-            {m.layers.map((l) => (
+            {view.layers.map((l) => (
               <label key={l.key} className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={show[l.key]} onChange={(e) => setShow({ ...show, [l.key]: e.target.checked })} />
                 <span className="inline-block w-3 h-3 rounded-sm" style={{ background: l.color }} />
                 <span className="text-slate-1">{l.label}</span>
-                <span className="ml-auto font-mono text-slate-2">{l.error ? "failed" : `${l.count} · ${fmt(l.areaM2 / 1e4, 1)} ha`}</span>
+                <span className="ml-auto font-mono text-slate-2">{"error" in l && l.error ? "failed" : `${l.count} · ${fmt(l.areaM2 / 1e4, 1)} ha`}</span>
               </label>
             ))}
             <p className="text-slate-3 pt-1">Each layer is one SAM pass with a noun phrase. Areas come from mask pixels over the known ground span; the white ring marks the site's coordinates.</p>

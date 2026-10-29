@@ -92,6 +92,7 @@ model RegionProfile {
   measuredSpanM      Float?
   measuredBy         String?
   measuredAt         DateTime?
+  measuredLayers     Json?     // satellite view and SAM masks, so the dossier shows the overlay without re-running
   sources        Json     @default("[]")
   enrichedBy     String?  // run id, null when priors only
   updatedAt      DateTime @updatedAt

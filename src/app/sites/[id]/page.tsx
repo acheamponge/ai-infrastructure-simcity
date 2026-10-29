@@ -9,6 +9,7 @@ import { AlternativesChart, CapexChart } from "@/components/charts";
 import { SiteMapLoader } from "@/components/site-map-loader";
 import { Kpi, Lead, Score, SectionTitle, StatusPill, VerdictPill } from "@/components/ui";
 import { SiteGlyph } from "@/components/site-glyph";
+import type { StoredLayers } from "@/lib/vision/sam";
 import { dateShort, money, moneyRound, num, pct, years } from "@/lib/format";
 import { mixLabel } from "@/lib/model/energy";
 import type { EnergyMix, EstimateResult, SiteSpec } from "@/lib/model/types";
@@ -34,7 +35,7 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
     <div className="flex flex-col gap-7">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-3xl">
-          <div className="flex items-center gap-2 mb-1"><StatusPill status={site.status} /><VerdictPill verdict={latest?.verdict} /><span className={`pill ${profile.enrichedBy ? "pill-go" : ""}`}>{profile.enrichedBy ? "profile sourced" : "profile from priors"}</span>{site.curated && <span className="pill">curated</span>}</div>
+          <div className="flex items-center gap-2 mb-1"><StatusPill status={site.status} /><VerdictPill verdict={latest?.verdict} /><span className={`pill ${profile.enrichedBy ? "pill-go" : ""}`}>{profile.enrichedBy ? "profile sourced" : "profile from priors"}</span>{site.curated && <span className="pill">curated</span>}{profile.measuredBy && <span className="pill pill-plan">measured by {profile.measuredBy}</span>}</div>
           <h1 className="text-2xl font-semibold">{site.name}</h1>
           <div className="text-sm text-slate-2 mt-1">{site.operator ?? "Operator unknown"} · {[site.city, site.region, site.country].filter(Boolean).join(", ")} · {site.capacityMw ? `${num(site.capacityMw)} MW` : "capacity unknown"}{site.expectedOnline ? ` · online ${site.expectedOnline}` : ""}{site.announcedAt ? ` · announced ${dateShort(site.announcedAt)}` : ""}</div>
           {site.description && <p className="text-sm mt-2 leading-relaxed">{site.description}</p>}
@@ -68,6 +69,11 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
         <Kpi label="Jobs" value={`${num(base.build.constructionJobs)} / ${num(base.operations.permanentJobs)}`} sub="build / permanent" />
         <Kpi label="Composite" value={num(base.scores.composite)} sub={`E ${base.scores.economic} · Env ${base.scores.environment} · C ${base.scores.community}`} tone={base.scores.composite >= 60 ? "good" : base.scores.composite >= 45 ? "warn" : "bad"} />
       </div>
+
+      <section>
+        <SectionTitle>What the satellite shows <span className="pill ml-2">SAM 3.1</span></SectionTitle>
+        <div className="card p-4"><SiteMeasure siteId={site.id} capacityMw={site.capacityMw} stored={(profile.measuredLayers as unknown as StoredLayers | null) ?? null} measured={profile.measuredBy ? { builtHa: profile.measuredBuiltHa ?? 0, openHa: profile.measuredOpenHa ?? 0, waterHa: profile.measuredWaterHa ?? 0, waterNearM: profile.measuredWaterNearM ?? null, solarHa: profile.measuredSolarHa ?? 0, spanM: profile.measuredSpanM ?? 1400, by: profile.measuredBy, at: profile.measuredAt?.toISOString() ?? null } : null} /></div>
+      </section>
 
       {latest && (
         <section className="card p-5 border-l-4" style={{ borderLeftColor: latest.verdict === "GO" ? "#059669" : latest.verdict === "CONDITIONAL" ? "#d97706" : "#dc2626" }}>
@@ -119,10 +125,6 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
         <EnergyMixer siteId={id} initialSpec={baseline.spec as unknown as SiteSpec} initialMix={baseline.energyMix as unknown as EnergyMix} baseline={base} geothermalAvailable={profile.geothermal} />
       </section>
 
-      <section>
-        <SectionTitle>Site measurement <span className="pill ml-2">SAM 3.1</span></SectionTitle>
-        <div className="card p-4"><SiteMeasure siteId={site.id} capacityMw={site.capacityMw} measured={profile.measuredBy ? { builtHa: profile.measuredBuiltHa ?? 0, openHa: profile.measuredOpenHa ?? 0, waterHa: profile.measuredWaterHa ?? 0, waterNearM: profile.measuredWaterNearM ?? null, solarHa: profile.measuredSolarHa ?? 0, spanM: profile.measuredSpanM ?? 1400, by: profile.measuredBy, at: profile.measuredAt?.toISOString() ?? null } : null} /></div>
-      </section>
 
       <section className="grid lg:grid-cols-[1fr_1fr] gap-5">
         <div className="card p-4">
