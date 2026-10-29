@@ -34,17 +34,17 @@ export function PolicyBoard({ sites }: { sites: SiteBundle[] }) {
   const heaviest = rows.slice().sort((a, b) => (b.e.environment.gridLoadShare + (b.e.environment.waterStressFlag ? 1 : 0)) - (a.e.environment.gridLoadShare + (a.e.environment.waterStressFlag ? 1 : 0)))[0] ?? null;
   const cols: Column<(typeof rows)[number]>[] = [
     { key: "site", label: "Site", sort: (r) => r.s.name, render: (r) => <><span className="font-medium text-accent">{r.s.name}</span><div className="text-[11px] text-slate-2">{[r.s.region, r.s.country].filter(Boolean).join(", ")}</div></> },
-    { key: "status", label: "Status", sort: (r) => r.s.status, render: (r) => <StatusPill status={r.s.status} /> },
-    { key: "grid", label: "Grid draw vs headroom", numeric: true, sort: (r) => r.e.environment.gridLoadShare, render: (r) => <span className={r.e.environment.gridLoadShare > 0.6 ? "text-crimson font-semibold" : ""} title={r.e.environment.gridLoadShare > 2 ? "The facility would draw more than the region's entire spare capacity" : undefined}>{pctCap(r.e.environment.gridLoadShare)}</span> },
-    { key: "co2", label: "CO₂ kt/yr", numeric: true, sort: (r) => r.e.environment.co2TonnesYr, render: (r) => num(r.e.environment.co2TonnesYr / 1000) },
-    { key: "ci", label: "g/kWh", numeric: true, sort: (r) => r.e.environment.carbonIntensityG, render: (r) => num(r.e.environment.carbonIntensityG) },
-    { key: "water", label: "Water Mm³/yr", numeric: true, sort: (r) => r.e.environment.waterM3Yr, render: (r) => <span className={r.e.environment.waterStressFlag ? "text-crimson" : ""}>{num(r.e.environment.waterM3Yr / 1e6, 2)}</span> },
-    { key: "jobs", label: "Jobs build / perm", numeric: true, sort: (r) => r.e.operations.permanentJobs, render: (r) => `${num(r.e.build.constructionJobs)} / ${num(r.e.operations.permanentJobs)}` },
-    { key: "tax", label: "Tax / yr", numeric: true, sort: (r) => r.e.community.taxRevenueUsdYr, render: (r) => money(r.e.community.taxRevenueUsdYr) },
-    { key: "carbonCost", label: "Carbon cost / yr", numeric: true, sort: (r) => r.carbonCost, render: (r) => (carbon ? money(r.carbonCost) : "—") },
-    { key: "nuis", label: "Nuisance", sort: (r) => r.e.community.nuisanceScore, render: (r) => <Score value={100 - r.e.community.nuisanceScore} /> },
-    { key: "sent", label: "Sentiment / yr", numeric: true, sort: (r) => r.e.community.sentimentShift, render: (r) => <span className={r.e.community.sentimentShift < 0 ? "text-crimson" : "text-teal"}>{r.e.community.sentimentShift > 0 ? "+" : ""}{r.e.community.sentimentShift.toFixed(1)}</span> },
-    { key: "verdict", label: "Verdict", sort: (r) => r.s.verdict ?? "", render: (r) => <VerdictPill verdict={r.s.verdict} /> },
+    { key: "status", priority: 3, label: "Status", sort: (r) => r.s.status, render: (r) => <StatusPill status={r.s.status} /> },
+    { key: "grid", priority: 1, label: "Grid draw vs headroom", numeric: true, sort: (r) => r.e.environment.gridLoadShare, render: (r) => <span className={r.e.environment.gridLoadShare > 0.6 ? "text-crimson font-semibold" : ""} title={r.e.environment.gridLoadShare > 2 ? "The facility would draw more than the region's entire spare capacity" : undefined}>{pctCap(r.e.environment.gridLoadShare)}</span> },
+    { key: "co2", priority: 1, label: "CO₂ kt/yr", numeric: true, sort: (r) => r.e.environment.co2TonnesYr, render: (r) => num(r.e.environment.co2TonnesYr / 1000) },
+    { key: "ci", priority: 3, label: "g/kWh", numeric: true, sort: (r) => r.e.environment.carbonIntensityG, render: (r) => num(r.e.environment.carbonIntensityG) },
+    { key: "water", priority: 1, label: "Water Mm³/yr", numeric: true, sort: (r) => r.e.environment.waterM3Yr, render: (r) => <span className={r.e.environment.waterStressFlag ? "text-crimson" : ""}>{num(r.e.environment.waterM3Yr / 1e6, 2)}</span> },
+    { key: "jobs", priority: 2, label: "Jobs build / perm", numeric: true, sort: (r) => r.e.operations.permanentJobs, render: (r) => `${num(r.e.build.constructionJobs)} / ${num(r.e.operations.permanentJobs)}` },
+    { key: "tax", priority: 2, label: "Tax / yr", numeric: true, sort: (r) => r.e.community.taxRevenueUsdYr, render: (r) => money(r.e.community.taxRevenueUsdYr) },
+    { key: "carbonCost", priority: 3, label: "Carbon cost / yr", numeric: true, sort: (r) => r.carbonCost, render: (r) => (carbon ? money(r.carbonCost) : "—") },
+    { key: "nuis", priority: 2, label: "Nuisance", sort: (r) => r.e.community.nuisanceScore, render: (r) => <Score value={100 - r.e.community.nuisanceScore} /> },
+    { key: "sent", priority: 3, label: "Sentiment / yr", numeric: true, sort: (r) => r.e.community.sentimentShift, render: (r) => <span className={r.e.community.sentimentShift < 0 ? "text-crimson" : "text-teal"}>{r.e.community.sentimentShift > 0 ? "+" : ""}{r.e.community.sentimentShift.toFixed(1)}</span> },
+    { key: "verdict", priority: 1, label: "Verdict", sort: (r) => r.s.verdict ?? "", render: (r) => <VerdictPill verdict={r.s.verdict} /> },
   ];
 
   return (

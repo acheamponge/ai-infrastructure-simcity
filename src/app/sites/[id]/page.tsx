@@ -7,8 +7,9 @@ import { SiteMeasure } from "@/components/site-measure";
 import { RunButton } from "@/components/run-button";
 import { AlternativesChart, CapexChart } from "@/components/charts";
 import { SiteMapLoader } from "@/components/site-map-loader";
-import { Kpi, Score, SectionTitle, StatusPill, VerdictPill } from "@/components/ui";
-import { dateShort, money, num, pct, years } from "@/lib/format";
+import { Kpi, Lead, Score, SectionTitle, StatusPill, VerdictPill } from "@/components/ui";
+import { SiteGlyph } from "@/components/site-glyph";
+import { dateShort, money, moneyRound, num, pct, years } from "@/lib/format";
 import { mixLabel } from "@/lib/model/energy";
 import type { EnergyMix, EstimateResult, SiteSpec } from "@/lib/model/types";
 
@@ -47,10 +48,20 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
+      <div className="grid lg:grid-cols-[1fr_300px] gap-4 items-stretch">
+        {(() => { const v = latest?.verdict; const conds = (latest?.conditions as string[] | undefined) ?? []; const firstSentence = (latest?.rationale ?? "").split(/(?<=\.)\s/)[0]; return (
+          <Lead tone={v === "GO" ? "accent" : v === "NO_GO" ? "violet" : "amber"} eyebrow={latest ? `Advisor's verdict · ${dateShort(latest.createdAt)} · ${latest.model}` : "Advisor's verdict"}
+            title={v === "GO" ? "Go" : v === "CONDITIONAL" ? "Conditional go" : v === "NO_GO" ? "No go" : "Not assessed yet"}
+            note={latest ? (v === "CONDITIONAL" && conds[0] ? <>On one condition: {conds[0]}{conds.length > 1 ? ` (+${conds.length - 1} more below)` : ""}</> : firstSentence) : "Press Assess baseline to have the advisor search energy mixes, fix a verdict against the viability floors and write the plan."}
+            stats={[{ l: "Composite", v: num(base.scores.composite) }, { l: "Payback", v: years(base.operations.paybackYears) }, { l: "Live in", v: `${num(base.build.monthsToLive)} mo` }]} />
+        ); })()}
+        <SiteGlyph siteId={id} racks={base.facility.racks} facilityMw={base.facility.facilityMw} live={site.status === "OPERATIONAL"} />
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
-        <Kpi label="Build cost" value={money(base.build.capexUsd)} />
+        <Kpi label="Build cost" value={moneyRound(base.build.capexUsd)} />
         <Kpi label="Months to live" value={num(base.build.monthsToLive)} sub={`gated by ${base.build.criticalPath}`} />
-        <Kpi label="EBITDA / yr" value={money(base.operations.ebitdaUsdYr)} tone={base.operations.ebitdaUsdYr > 0 ? "good" : "bad"} />
+        <Kpi label="EBITDA / yr" value={moneyRound(base.operations.ebitdaUsdYr)} tone={base.operations.ebitdaUsdYr > 0 ? "good" : "bad"} />
         <Kpi label="Payback" value={years(base.operations.paybackYears)} tone={(base.operations.paybackYears ?? 99) <= 7 ? "good" : "warn"} />
         <Kpi label="IRR" value={pct(base.operations.irr, 1)} />
         <Kpi label="CO₂ / yr" value={`${num(base.environment.co2TonnesYr / 1000)} kt`} sub={`${num(base.environment.carbonIntensityG)} g/kWh`} />

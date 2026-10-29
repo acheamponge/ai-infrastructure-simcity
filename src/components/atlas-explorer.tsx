@@ -27,15 +27,15 @@ export function AtlasExplorer({ sites }: { sites: SiteBundle[] }) {
 
   const cols: Column<(typeof rows)[number]>[] = [
     { key: "site", label: "Site", sort: (r) => r.s.name, render: (r) => <><span className="font-medium text-accent">{r.s.name}</span><div className="text-[11px] text-slate-2">{[r.s.city, r.s.region, r.s.country].filter(Boolean).join(", ")}</div></> },
-    { key: "op", label: "Operator", sort: (r) => r.s.operator ?? "", render: (r) => r.s.operator ?? <span className="text-slate-2">—</span> },
-    { key: "status", label: "Status", sort: (r) => r.s.status, render: (r) => <StatusPill status={r.s.status} /> },
-    { key: "mw", label: "MW", numeric: true, sort: (r) => r.s.capacityMw, render: (r) => num(r.s.capacityMw) },
-    { key: "capex", label: "Capex", numeric: true, sort: (r) => r.e.build.capexUsd, render: (r) => money(r.e.build.capexUsd) },
-    { key: "live", label: "Live in", numeric: true, sort: (r) => r.e.build.monthsToLive, render: (r) => `${r.e.build.monthsToLive} mo` },
-    { key: "payback", label: "Payback", numeric: true, sort: (r) => r.e.operations.paybackYears ?? 99, render: (r) => years(r.e.operations.paybackYears) },
-    { key: "co2", label: "CO₂ kt/yr", numeric: true, sort: (r) => r.e.environment.co2TonnesYr, render: (r) => num(r.e.environment.co2TonnesYr / 1000) },
-    { key: "prof", label: "Profile", sort: (r) => (r.s.enriched ? 1 : 0), render: (r) => <span className={`pill ${r.s.enriched ? "pill-go" : ""}`}>{r.s.enriched ? "sourced" : "priors"}</span> },
-    { key: "verdict", label: "Verdict", sort: (r) => r.s.verdict ?? "", render: (r) => <VerdictPill verdict={r.s.verdict} /> },
+    { key: "op", priority: 2, label: "Operator", sort: (r) => r.s.operator ?? "", render: (r) => r.s.operator ?? <span className="text-slate-2">—</span> },
+    { key: "status", priority: 1, label: "Status", sort: (r) => r.s.status, render: (r) => <StatusPill status={r.s.status} /> },
+    { key: "mw", priority: 1, label: "MW", numeric: true, sort: (r) => r.s.capacityMw, render: (r) => num(r.s.capacityMw) },
+    { key: "capex", priority: 1, label: "Capex", numeric: true, sort: (r) => r.e.build.capexUsd, render: (r) => money(r.e.build.capexUsd) },
+    { key: "live", priority: 3, label: "Live in", numeric: true, sort: (r) => r.e.build.monthsToLive, render: (r) => `${r.e.build.monthsToLive} mo` },
+    { key: "payback", priority: 2, label: "Payback", numeric: true, sort: (r) => r.e.operations.paybackYears ?? 99, render: (r) => years(r.e.operations.paybackYears) },
+    { key: "co2", priority: 3, label: "CO₂ kt/yr", numeric: true, sort: (r) => r.e.environment.co2TonnesYr, render: (r) => num(r.e.environment.co2TonnesYr / 1000) },
+    { key: "prof", priority: 3, label: "Profile", sort: (r) => (r.s.enriched ? 1 : 0), render: (r) => <span className={`pill ${r.s.enriched ? "pill-go" : ""}`}>{r.s.enriched ? "sourced" : "priors"}</span> },
+    { key: "verdict", priority: 1, label: "Verdict", sort: (r) => r.s.verdict ?? "", render: (r) => <VerdictPill verdict={r.s.verdict} /> },
     { key: "sim", label: "", render: (r) => <a href={`/?site=${r.s.id}`} className="btn !py-0.5 !px-2 text-[11px]" onClick={(e) => e.stopPropagation()}>Simulate</a> },
   ];
 

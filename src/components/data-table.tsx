@@ -8,11 +8,16 @@ export interface Column<T> {
   sort?: (row: T) => number | string | null;
   render: (row: T) => React.ReactNode;
   className?: string;
+  /** 1 always shows; 2 hides below lg; 3 hides below xl, unless the reader asks for every column. */
+  priority?: 1 | 2 | 3;
 }
 
 /** Sortable table: click a header to sort, click again to flip. */
 export function DataTable<T>({ rows, columns, rowKey, initialSort, onRowClick, empty = "Nothing to show." }: { rows: T[]; columns: Column<T>[]; rowKey: (r: T) => string; initialSort?: { key: string; dir: "asc" | "desc" }; onRowClick?: (r: T) => void; empty?: string }) {
   const [sort, setSort] = useState(initialSort ?? null);
+  const [showAll, setShowAll] = useState(false);
+  const hasHidden = columns.some((c) => (c.priority ?? 1) > 1);
+  const vis = (c: Column<T>) => (showAll ? "" : (c.priority ?? 1) === 2 ? "hidden lg:table-cell" : (c.priority ?? 1) === 3 ? "hidden xl:table-cell" : "");
   const sorted = useMemo(() => {
     if (!sort) return rows;
     const col = columns.find((c) => c.key === sort.key);
@@ -27,10 +32,11 @@ export function DataTable<T>({ rows, columns, rowKey, initialSort, onRowClick, e
   const click = (c: Column<T>) => { if (!c.sort) return; setSort((s) => (s?.key === c.key ? { key: c.key, dir: s.dir === "asc" ? "desc" : "asc" } : { key: c.key, dir: c.numeric ? "desc" : "asc" })); };
   return (
     <div className="card overflow-x-auto">
+      {hasHidden && <div className="flex justify-end px-3 pt-2 xl:hidden"><button type="button" className="text-[11px] text-slate-3 hover:text-accent" onClick={() => setShowAll((v) => !v)} aria-pressed={showAll}>{showAll ? "Fewer columns" : "All columns"}</button></div>}
       <table className="table">
-        <thead><tr>{columns.map((c) => <th key={c.key} className={`${c.numeric ? "r" : ""} ${c.sort ? "cursor-pointer select-none hover:text-ink" : ""}`} onClick={() => click(c)}>{c.label}{sort?.key === c.key && <span className="ml-1 text-accent" aria-label={sort.dir === "asc" ? "sorted ascending" : "sorted descending"}>{sort.dir === "asc" ? "▲" : "▼"}</span>}</th>)}</tr></thead>
+        <thead><tr>{columns.map((c) => <th key={c.key} className={`${c.numeric ? "r" : ""} ${c.sort ? "cursor-pointer select-none hover:text-ink" : ""} ${vis(c)}`} onClick={() => click(c)}>{c.label}{sort?.key === c.key && <span className="ml-1 text-accent" aria-label={sort.dir === "asc" ? "sorted ascending" : "sorted descending"}>{sort.dir === "asc" ? "▲" : "▼"}</span>}</th>)}</tr></thead>
         <tbody>
-          {sorted.map((r) => <tr key={rowKey(r)} onClick={onRowClick ? () => onRowClick(r) : undefined} className={onRowClick ? "cursor-pointer" : ""}>{columns.map((c) => <td key={c.key} className={`${c.numeric ? "r" : ""} ${c.className ?? ""}`}>{c.render(r)}</td>)}</tr>)}
+          {sorted.map((r) => <tr key={rowKey(r)} onClick={onRowClick ? () => onRowClick(r) : undefined} className={onRowClick ? "cursor-pointer" : ""}>{columns.map((c) => <td key={c.key} className={`${c.numeric ? "r" : ""} ${c.className ?? ""} ${vis(c)}`}>{c.render(r)}</td>)}</tr>)}
           {sorted.length === 0 && <tr><td colSpan={columns.length} className="text-center text-slate-2 py-8">{empty}</td></tr>}
         </tbody>
       </table>

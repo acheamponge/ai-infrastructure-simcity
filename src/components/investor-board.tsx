@@ -38,15 +38,15 @@ export function InvestorBoard({ sites }: { sites: SiteBundle[] }) {
 
   const cols: Column<(typeof rows)[number]>[] = [
     { key: "site", label: "Site", sort: (r) => r.s.name, render: (r) => <><span className="font-medium text-accent">{r.s.name}</span><div className="text-[11px] text-slate-2">{r.s.operator ?? "—"} · {r.s.country}</div></> },
-    { key: "status", label: "Status", sort: (r) => r.s.status, render: (r) => <StatusPill status={r.s.status} /> },
-    { key: "capex", label: "Capex", numeric: true, sort: (r) => r.e.build.capexUsd, render: (r) => money(r.e.build.capexUsd) },
-    { key: "irr", label: "IRR", numeric: true, sort: (r) => r.e.operations.irr, render: (r) => <span className={`font-semibold ${(r.e.operations.irr ?? 0) >= 0.12 ? "text-teal" : (r.e.operations.irr ?? 0) < 0.08 ? "text-crimson" : ""}`}>{pct(r.e.operations.irr, 1)}</span> },
-    { key: "dirr", label: "Δ vs base", numeric: true, sort: (r) => (r.e.operations.irr ?? 0) - (r.base.operations.irr ?? 0), render: (r) => { const d = ((r.e.operations.irr ?? 0) - (r.base.operations.irr ?? 0)) * 100; return <span className={d > 0.05 ? "text-teal" : d < -0.05 ? "text-crimson" : "text-slate-2"}>{d > 0 ? "+" : ""}{d.toFixed(1)} pt</span>; } },
-    { key: "npv", label: "NPV", numeric: true, sort: (r) => r.e.operations.npv10Usd, render: (r) => money(r.e.operations.npv10Usd) },
-    { key: "payback", label: "Payback", numeric: true, sort: (r) => r.e.operations.paybackYears ?? 99, render: (r) => years(r.e.operations.paybackYears) },
-    { key: "util", label: "Util.", numeric: true, sort: (r) => r.e.operations.utilization, render: (r) => pct(r.e.operations.utilization) },
-    { key: "ebitda", label: "EBITDA / yr", numeric: true, sort: (r) => r.e.operations.ebitdaUsdYr, render: (r) => money(r.e.operations.ebitdaUsdYr) },
-    { key: "verdict", label: "Verdict", sort: (r) => r.s.verdict ?? "", render: (r) => <VerdictPill verdict={r.s.verdict} /> },
+    { key: "status", priority: 2, label: "Status", sort: (r) => r.s.status, render: (r) => <StatusPill status={r.s.status} /> },
+    { key: "capex", priority: 1, label: "Capex", numeric: true, sort: (r) => r.e.build.capexUsd, render: (r) => money(r.e.build.capexUsd) },
+    { key: "irr", priority: 1, label: "IRR", numeric: true, sort: (r) => r.e.operations.irr, render: (r) => <span className={`font-semibold ${(r.e.operations.irr ?? 0) >= 0.12 ? "text-teal" : (r.e.operations.irr ?? 0) < 0.08 ? "text-crimson" : ""}`}>{pct(r.e.operations.irr, 1)}</span> },
+    { key: "dirr", priority: 2, label: "Δ vs base", numeric: true, sort: (r) => (r.e.operations.irr ?? 0) - (r.base.operations.irr ?? 0), render: (r) => { const d = ((r.e.operations.irr ?? 0) - (r.base.operations.irr ?? 0)) * 100; return <span className={d > 0.05 ? "text-teal" : d < -0.05 ? "text-crimson" : "text-slate-2"}>{d > 0 ? "+" : ""}{d.toFixed(1)} pt</span>; } },
+    { key: "npv", priority: 1, label: "NPV", numeric: true, sort: (r) => r.e.operations.npv10Usd, render: (r) => money(r.e.operations.npv10Usd) },
+    { key: "payback", priority: 2, label: "Payback", numeric: true, sort: (r) => r.e.operations.paybackYears ?? 99, render: (r) => years(r.e.operations.paybackYears) },
+    { key: "util", priority: 3, label: "Util.", numeric: true, sort: (r) => r.e.operations.utilization, render: (r) => pct(r.e.operations.utilization) },
+    { key: "ebitda", priority: 3, label: "EBITDA / yr", numeric: true, sort: (r) => r.e.operations.ebitdaUsdYr, render: (r) => money(r.e.operations.ebitdaUsdYr) },
+    { key: "verdict", priority: 1, label: "Verdict", sort: (r) => r.s.verdict ?? "", render: (r) => <VerdictPill verdict={r.s.verdict} /> },
   ];
 
   return (

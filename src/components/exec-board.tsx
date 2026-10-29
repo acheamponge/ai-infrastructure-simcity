@@ -33,17 +33,17 @@ export function ExecBoard({ sites, conditions }: { sites: SiteBundle[]; conditio
   const next = pipeline.filter((r) => r.s.verdict !== "NO_GO").sort((a, b) => ((b.s.verdict === "GO" ? 1 : 0) - (a.s.verdict === "GO" ? 1 : 0)) || ((b.e.operations.irr ?? -1) - (a.e.operations.irr ?? -1)))[0] ?? null;
   const cols: Column<(typeof rows)[number]>[] = [
     { key: "site", label: "Site", sort: (r) => r.s.name, render: (r) => <><span className="font-medium text-accent">{r.s.name}</span><div className="text-[11px] text-slate-2">{r.s.operator ?? "—"} · {r.s.country}</div></> },
-    { key: "status", label: "Status", sort: (r) => r.s.status, render: (r) => <StatusPill status={r.s.status} /> },
-    { key: "mw", label: "MW", numeric: true, sort: (r) => r.e.facility.facilityMw, render: (r) => num(r.e.facility.facilityMw) },
-    { key: "capex", label: "Capex", numeric: true, sort: (r) => r.e.build.capexUsd, render: (r) => money(r.e.build.capexUsd) },
-    { key: "live", label: "Live in", numeric: true, sort: (r) => r.e.build.monthsToLive, render: (r) => { const d = r.e.build.monthsToLive - r.ref.build.monthsToLive; return <>{r.e.build.monthsToLive} mo{d !== 0 && <span className={`text-[11px] ml-1 ${d < 0 ? "text-teal" : "text-crimson"}`}>({d > 0 ? "+" : ""}{d})</span>}</>; } },
-    { key: "path", label: "Critical path", sort: (r) => r.e.build.criticalPath, render: (r) => <span className="text-xs">{r.e.build.criticalPath}</span> },
-    { key: "jobs", label: "Jobs build / perm", numeric: true, sort: (r) => r.e.build.constructionJobs, render: (r) => `${num(r.e.build.constructionJobs)} / ${num(r.e.operations.permanentJobs)}` },
-    { key: "rev", label: "Revenue / yr", numeric: true, sort: (r) => r.e.operations.revenueUsdYr, render: (r) => money(r.e.operations.revenueUsdYr) },
-    { key: "ebitda", label: "EBITDA / yr", numeric: true, sort: (r) => r.e.operations.ebitdaUsdYr, render: (r) => money(r.e.operations.ebitdaUsdYr) },
-    { key: "payback", label: "Payback", numeric: true, sort: (r) => r.e.operations.paybackYears ?? 99, render: (r) => years(r.e.operations.paybackYears) },
-    { key: "irr", label: "IRR", numeric: true, sort: (r) => r.e.operations.irr, render: (r) => pct(r.e.operations.irr, 0) },
-    { key: "verdict", label: "Verdict", sort: (r) => r.s.verdict ?? "", render: (r) => <VerdictPill verdict={r.s.verdict} /> },
+    { key: "status", priority: 2, label: "Status", sort: (r) => r.s.status, render: (r) => <StatusPill status={r.s.status} /> },
+    { key: "mw", priority: 2, label: "MW", numeric: true, sort: (r) => r.e.facility.facilityMw, render: (r) => num(r.e.facility.facilityMw) },
+    { key: "capex", priority: 1, label: "Capex", numeric: true, sort: (r) => r.e.build.capexUsd, render: (r) => money(r.e.build.capexUsd) },
+    { key: "live", priority: 1, label: "Live in", numeric: true, sort: (r) => r.e.build.monthsToLive, render: (r) => { const d = r.e.build.monthsToLive - r.ref.build.monthsToLive; return <>{r.e.build.monthsToLive} mo{d !== 0 && <span className={`text-[11px] ml-1 ${d < 0 ? "text-teal" : "text-crimson"}`}>({d > 0 ? "+" : ""}{d})</span>}</>; } },
+    { key: "path", priority: 3, label: "Critical path", sort: (r) => r.e.build.criticalPath, render: (r) => <span className="text-xs">{r.e.build.criticalPath}</span> },
+    { key: "jobs", priority: 3, label: "Jobs build / perm", numeric: true, sort: (r) => r.e.build.constructionJobs, render: (r) => `${num(r.e.build.constructionJobs)} / ${num(r.e.operations.permanentJobs)}` },
+    { key: "rev", priority: 3, label: "Revenue / yr", numeric: true, sort: (r) => r.e.operations.revenueUsdYr, render: (r) => money(r.e.operations.revenueUsdYr) },
+    { key: "ebitda", priority: 2, label: "EBITDA / yr", numeric: true, sort: (r) => r.e.operations.ebitdaUsdYr, render: (r) => money(r.e.operations.ebitdaUsdYr) },
+    { key: "payback", priority: 1, label: "Payback", numeric: true, sort: (r) => r.e.operations.paybackYears ?? 99, render: (r) => years(r.e.operations.paybackYears) },
+    { key: "irr", priority: 1, label: "IRR", numeric: true, sort: (r) => r.e.operations.irr, render: (r) => pct(r.e.operations.irr, 0) },
+    { key: "verdict", priority: 1, label: "Verdict", sort: (r) => r.s.verdict ?? "", render: (r) => <VerdictPill verdict={r.s.verdict} /> },
   ];
 
   return (

@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { headline, siteRows } from "@/lib/queries";
+import { prisma } from "@/lib/db";
 import { Kpi, SiteLink, StatusPill, VerdictPill } from "@/components/ui";
 import { money, num } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function Overview() {
-  const [h, rows] = await Promise.all([headline(), siteRows()]);
+  const [h, rows, runs] = await Promise.all([headline(), siteRows(), prisma.agentRun.findMany({ where: { status: "SUCCEEDED" }, orderBy: { startedAt: "desc" }, take: 60 })]);
+  const dayAgo = Date.now() - 86400e3; const recentRuns = runs.filter((r) => r.startedAt.getTime() > dayAgo);
+  const countKind = (k: string) => recentRuns.filter((r) => r.kind === k).length;
   const recent = rows.slice().sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()).slice(0, 8);
   const personas = [
     { href: "/executive", title: "Executive", lede: "Where to build next, what it costs, how long until first revenue, and which sites the advisor would not sign off on.", items: ["Portfolio capex and payback", "Critical path by site", "Open conditions"] },
@@ -31,6 +34,15 @@ export default async function Overview() {
           <Kpi label="Verdicts" value={`${h.byVerdict.GO ?? 0} / ${h.byVerdict.CONDITIONAL ?? 0} / ${h.byVerdict.NO_GO ?? 0}`} sub="go / conditional / no go" />
         </div>
       </section>
+      {runs[0] && (
+        <section className="card px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px] rise rise-2">
+          <span className="eyebrow eyebrow-dot">What changed in the last 24 h</span>
+          <span><b className="num text-slate-1">{countKind("ASSESS")}</b> <span className="text-slate-2">verdicts written</span></span>
+          <span><b className="num text-slate-1">{countKind("ENRICH")}</b> <span className="text-slate-2">sites enriched and measured</span></span>
+          <span><b className="num text-slate-1">{countKind("DISCOVER")}</b> <span className="text-slate-2">discovery runs</span></span>
+          <span className="text-slate-3 ml-auto">last run {runs[0].startedAt.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} on <span className="text-violet">{runs[0].model}</span> · <Link href="/agents" className="text-accent hover:underline">run log</Link></span>
+        </section>
+      )}
       <section className="grid md:grid-cols-3 gap-4 rise rise-3">
         {personas.map((p, i) => (
           <Link key={p.href} href={p.href} className={`card card-hover card-accent ${i === 1 ? "card-amber" : i === 2 ? "card-violet" : ""} p-5`}>

@@ -145,3 +145,6 @@ select option { background: var(--color-panel); color: var(--color-ink); }
 .chip-on { background: rgba(63, 216, 198, .16) !important; color: #bff2ea !important; border-color: rgba(63, 216, 198, .6) !important; }
 .screening { font: 500 10px/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--color-slate-3); display: inline-flex; align-items: center; gap: 6px; }
 .screening::before { content: "±"; font-size: 12px; color: var(--color-amber); }
+
+@keyframes drawerIn { from { transform: translateX(32px); } to { transform: none; } }
+.drawer-in { animation: drawerIn .22s ease-out both; }

@@ -1,4 +1,4 @@
-import { PageHeader } from "@/components/ui";
+import { Lead, PageHeader } from "@/components/ui";
 import { SOURCES } from "@/lib/model/energy";
 import { GPUS, DENSITY } from "@/lib/model/hardware";
 import { VIABILITY } from "@/lib/model/optimize";
@@ -8,6 +8,7 @@ export default function Methodology() {
   return (
     <div className="flex flex-col gap-6 max-w-5xl">
       <PageHeader eyebrow="Methodology" title="How the numbers are made" lede="Everything the dashboards show is produced by a deterministic engine from a small set of documented coefficients. Agents may replace a site's region factors with sourced values; they cannot change the engine or the verdict rule." />
+      <Lead eyebrow="In one paragraph" title="Deterministic engine, model-written words" stats={[{ l: "Composite", v: "40 · 35 · 25" }, { l: "Floors", v: String(Object.keys(VIABILITY).length) }, { l: "Mixes searched", v: "11" }]} note="Every number on every page comes from one engine with the coefficients listed here. Agents only change its inputs, with a source attached, and SAM measures land and water from imagery. The verdict is fixed by the floors before any model writes a sentence, so the words can be wrong but the numbers cannot be invented." />
       <section className="card p-5 text-sm leading-relaxed space-y-3">
         <h2 className="font-semibold text-[15px]">Estimate</h2>
         <p><b>Facility.</b> IT load is the input. PUE comes from rack density (air 1.45, 80 kW liquid 1.18, 130 kW liquid 1.12) adjusted +0.15 in hot climates and −0.07 in cold ones. Facility power is IT load times PUE. GPUs per rack use 70% of rack power at the GPU's TDP.</p>
