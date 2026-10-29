@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { SiteBundle } from "@/lib/bundles";
 import { estimate } from "@/lib/model/estimate";
@@ -15,14 +15,19 @@ export function InvestorBoard({ sites }: { sites: SiteBundle[] }) {
   const [disc, setDisc] = useState(10);       // discount rate %
   const [usePlan, setUsePlan] = useState(false);
   const router = useRouter();
+  const powerD = useDeferredValue(power);
+  const firmD = useDeferredValue(firm);
+  const priceD = useDeferredValue(price);
+  const discD = useDeferredValue(disc);
+  const usePlanD = useDeferredValue(usePlan);
 
   const rows = useMemo(() => sites.map((s) => {
-    const f = { ...s.factors, powerPriceKwh: s.factors.powerPriceKwh * (1 + power / 100), gridReliability: Math.min(1, s.factors.gridReliability * (1 + firm / 100)), solar: Math.min(1, s.factors.solar * (1 + firm / 100)), wind: Math.min(1, s.factors.wind * (1 + firm / 100)) };
-    const spec = usePlan && s.planSpec ? s.planSpec : s.spec, mix = usePlan && s.planMix ? s.planMix : s.mix;
-    const e = estimate(spec, f, mix, { priceMult: 1 + price / 100, discount: disc / 100 });
-    const base = estimate(spec, s.factors, mix, { discount: disc / 100 });
+    const f = { ...s.factors, powerPriceKwh: s.factors.powerPriceKwh * (1 + powerD / 100), gridReliability: Math.min(1, s.factors.gridReliability * (1 + firmD / 100)), solar: Math.min(1, s.factors.solar * (1 + firmD / 100)), wind: Math.min(1, s.factors.wind * (1 + firmD / 100)) };
+    const spec = usePlanD && s.planSpec ? s.planSpec : s.spec, mix = usePlanD && s.planMix ? s.planMix : s.mix;
+    const e = estimate(spec, f, mix, { priceMult: 1 + priceD / 100, discount: discD / 100 });
+    const base = estimate(spec, s.factors, mix, { discount: discD / 100 });
     return { s, e, base };
-  }).sort((a, b) => (b.e.operations.irr ?? -1) - (a.e.operations.irr ?? -1)), [sites, power, firm, price, disc, usePlan]);
+  }).sort((a, b) => (b.e.operations.irr ?? -1) - (a.e.operations.irr ?? -1)), [sites, powerD, firmD, priceD, discD, usePlanD]);
 
   const top = rows.find((r) => r.s.verdict !== "NO_GO") ?? rows[0] ?? null;
   const flip = useMemo(() => {

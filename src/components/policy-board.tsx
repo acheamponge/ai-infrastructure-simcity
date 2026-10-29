@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { SiteBundle } from "@/lib/bundles";
 import { estimate } from "@/lib/model/estimate";
@@ -14,16 +14,20 @@ export function PolicyBoard({ sites }: { sites: SiteBundle[] }) {
   const [usePlan, setUsePlan] = useState(false);
   const [headroom, setHeadroom] = useState(0);      // % change in grid headroom (new transmission)
   const router = useRouter();
+  const countriesD = useDeferredValue(countries);
+  const carbonD = useDeferredValue(carbon);
+  const usePlanD = useDeferredValue(usePlan);
+  const headroomD = useDeferredValue(headroom);
   const allCountries = useMemo(() => [...new Set(sites.map((s) => s.country))].sort(), [sites]);
 
   const rows = useMemo(() => sites
-    .filter((s) => countries.size === 0 || countries.has(s.country))
+    .filter((s) => countriesD.size === 0 || countriesD.has(s.country))
     .map((s) => {
-      const f = { ...s.factors, gridHeadroomMw: s.factors.gridHeadroomMw * (1 + headroom / 100) };
-      const spec = usePlan && s.planSpec ? s.planSpec : s.spec, mix = usePlan && s.planMix ? s.planMix : s.mix;
-      const e = estimate(spec, f, mix, { carbonPriceUsdT: carbon });
-      return { s, e, carbonCost: (e.environment.co2TonnesYr * carbon) };
-    }), [sites, countries, carbon, usePlan, headroom]);
+      const f = { ...s.factors, gridHeadroomMw: s.factors.gridHeadroomMw * (1 + headroomD / 100) };
+      const spec = usePlanD && s.planSpec ? s.planSpec : s.spec, mix = usePlanD && s.planMix ? s.planMix : s.mix;
+      const e = estimate(spec, f, mix, { carbonPriceUsdT: carbonD });
+      return { s, e, carbonCost: (e.environment.co2TonnesYr * carbonD) };
+    }), [sites, countriesD, carbonD, usePlanD, headroomD]);
 
   const sum = (f: (r: (typeof rows)[number]) => number) => rows.reduce((a, r) => a + f(r), 0);
   const co2 = sum((r) => r.e.environment.co2TonnesYr), water = sum((r) => r.e.environment.waterM3Yr), tax = sum((r) => r.e.community.taxRevenueUsdYr);

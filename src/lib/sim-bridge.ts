@@ -32,11 +32,11 @@ export function toSimCfg(spec: SiteSpec, mix: EnergyMix, flareAvailable: boolean
 }
 
 /** A registry site as a sim "region" with its own economics, so it can be built in the game. */
-export function toSimRegion(site: Site, p: RegionProfile, baseline: { spec: unknown; energyMix: unknown }) {
+export function toSimRegion(site: Site, p: RegionProfile, baseline: { spec: unknown; energyMix: unknown; assessments?: Array<{ verdict: string }> }) {
   const spec = baseline.spec as SiteSpec, mix = baseline.energyMix as EnergyMix;
   const { phases, cfg } = toSimCfg(spec, mix, p.flareGas);
   return {
-    id: `site:${site.id}`, siteId: site.id, real: true, name: site.name, operator: site.operator, country: site.country, lat: site.lat, lon: site.lon, status: site.status, phases, cfg,
+    id: `site:${site.id}`, siteId: site.id, real: true, name: site.name, operator: site.operator, country: site.country, lat: site.lat, lon: site.lon, status: site.status, verdict: baseline.assessments?.[0]?.verdict ?? null, phases, cfg,
     power: p.powerPriceKwh, carbon: p.gridCarbonG, labor: p.laborPool, wage: p.wageUsdH, land: p.landIndex, sent: p.sentiment,
     climate: p.climate, water: p.waterStress === "medium" ? "med" : p.waterStress, gridLead: p.gridLeadMonths, gridRel: p.gridReliability, headroom: p.gridHeadroomMw,
     solar: p.solar, wind: p.wind, geo: p.geothermal, flare: p.flareGas,

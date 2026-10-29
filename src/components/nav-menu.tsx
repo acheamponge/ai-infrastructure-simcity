@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useFocusTrap } from "./use-focus-trap";
 import { createPortal } from "react-dom";
 
 const links = [
@@ -19,6 +20,8 @@ const links = [
 export function NavMenu({ status }: { status: { live: boolean; label: string; title: string } }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  const panel = useRef<HTMLDivElement>(null);
+  useFocusTrap(panel, open);
   useEffect(() => { setOpen(false); }, [path]);
   useEffect(() => {
     if (!open) return;
@@ -55,7 +58,7 @@ export function NavMenu({ status }: { status: { live: boolean; label: string; ti
       {open && typeof document !== "undefined" && createPortal(
         <div className="lg:hidden fixed inset-x-0 top-14 bottom-0 z-40" role="dialog" aria-modal="true" id="mobile-menu">
           <div className="absolute inset-0" style={{ background: "rgba(0,0,0,.55)", backdropFilter: "blur(2px)" }} onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-0 bottom-0 w-[min(360px,88vw)] border-l border-white/8 shadow-2xl shadow-black/60 flex flex-col overflow-y-auto drawer-in" style={{ background: "rgba(12,17,24,.98)" }}>
+          <div ref={panel} className="absolute right-0 top-0 bottom-0 w-[min(360px,88vw)] border-l border-white/8 shadow-2xl shadow-black/60 flex flex-col overflow-y-auto drawer-in" style={{ background: "rgba(12,17,24,.98)" }}>
             <div className="px-4 py-3 border-b border-white/8"><span className={`pill ${status.live ? "pill-go pill-live" : "pill-cond"}`} title={status.title}>{status.label}</span></div>
             <ul className="py-2">
               {links.map(([href, label, hint]) => {

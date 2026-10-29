@@ -9,12 +9,12 @@ export interface SimFocus { regionId: string; cfg?: Record<string, unknown>; aut
 /** Mounts the game loop onto static markup. The sim owns everything inside .simroot. */
 export function Simulation({ realSites, focus }: { realSites: SimRegion[]; focus?: SimFocus }) {
   useEffect(() => {
-    let sim: { stop: () => void; applyFocus: (f: SimFocus) => void } | null = null;
+    let sim: { stop: () => void; applyFocus: (f: SimFocus) => void; selectRegion: (id: string) => void } | null = null;
     let cancelled = false;
     import("@/sim/sim").then((m) => {
       if (cancelled) return;
       sim = m.startSim({ realSites, focus });
-      (window as unknown as { __simcity?: unknown }).__simcity = { applyFocus: (f: SimFocus) => sim?.applyFocus(f) };
+      (window as unknown as { __simcity?: unknown }).__simcity = { applyFocus: (f: SimFocus) => sim?.applyFocus(f), selectRegion: (id: string) => sim?.selectRegion(id) };
     });
     return () => { cancelled = true; sim?.stop(); delete (window as unknown as { __simcity?: unknown }).__simcity; };
     // eslint-disable-next-line react-hooks/exhaustive-deps

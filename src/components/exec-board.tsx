@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { SiteBundle } from "@/lib/bundles";
 import { estimate } from "@/lib/model/estimate";
@@ -15,14 +15,19 @@ export function ExecBoard({ sites, conditions }: { sites: SiteBundle[]; conditio
   const [usePlan, setUsePlan] = useState(false);
   const [pipelineOnly, setPipelineOnly] = useState(false);
   const router = useRouter();
+  const crewD = useDeferredValue(crew);
+  const robotsD = useDeferredValue(robots);
+  const gpuD = useDeferredValue(gpu);
+  const usePlanD = useDeferredValue(usePlan);
+  const pipelineOnlyD = useDeferredValue(pipelineOnly);
 
   const rows = useMemo(() => sites
-    .filter((s) => !pipelineOnly || s.status !== "OPERATIONAL")
+    .filter((s) => !pipelineOnlyD || s.status !== "OPERATIONAL")
     .map((s) => {
-      const base = usePlan && s.planSpec ? s.planSpec : s.spec, mix = usePlan && s.planMix ? s.planMix : s.mix;
-      const spec = { ...base, crew: Math.round(base.crew * (1 + crew / 100)), robots: robots ?? base.robots, gpu: gpu || base.gpu };
+      const base = usePlanD && s.planSpec ? s.planSpec : s.spec, mix = usePlanD && s.planMix ? s.planMix : s.mix;
+      const spec = { ...base, crew: Math.round(base.crew * (1 + crewD / 100)), robots: robotsD ?? base.robots, gpu: gpuD || base.gpu };
       return { s, e: estimate(spec, s.factors, mix), ref: estimate(base, s.factors, mix) };
-    }), [sites, crew, robots, gpu, usePlan, pipelineOnly]);
+    }), [sites, crewD, robotsD, gpuD, usePlanD, pipelineOnlyD]);
 
   const pipeline = rows.filter((r) => r.s.status !== "OPERATIONAL");
   const capex = pipeline.reduce((a, r) => a + r.e.build.capexUsd, 0);

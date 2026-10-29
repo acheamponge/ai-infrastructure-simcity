@@ -148,3 +148,15 @@ select option { background: var(--color-panel); color: var(--color-ink); }
 
 @keyframes drawerIn { from { transform: translateX(32px); } to { transform: none; } }
 .drawer-in { animation: drawerIn .22s ease-out both; }
+
+/* print: a dossier becomes a clean brief */
+@media print {
+  .bg-fx, header, footer, .btn, button, nav, [role=dialog], .hudinc, .skel { display: none !important; }
+  body { background: #fff; color: #111; }
+  .card { background: #fff; border: 1px solid #ccc; box-shadow: none; backdrop-filter: none; break-inside: avoid; }
+  .hero-title, .glow-text { color: #111; background: none; -webkit-text-fill-color: #111; }
+  .eyebrow, .text-slate-2, .text-slate-3 { color: #555 !important; }
+  .table th, .table td { border-color: #ddd; color: #111; }
+  main { max-width: none; padding: 0; }
+  a { text-decoration: none; color: #111; }
+}

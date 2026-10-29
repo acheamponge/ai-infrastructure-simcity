@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { statusLabel, verdictLabel } from "@/lib/format";
+import { AnimatedValue } from "./animated-value";
 
 export function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "good" | "warn" | "bad" }) {
   const color = tone === "good" ? "text-teal" : tone === "warn" ? "text-amber" : tone === "bad" ? "text-crimson" : "glow-text";
@@ -8,7 +9,7 @@ export function Kpi({ label, value, sub, tone }: { label: string; value: string;
     <div className="card card-hover px-4 py-3 min-w-0 overflow-hidden">
       <div className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-gradient-to-b ${bar} to-transparent`} aria-hidden />
       <div className="eyebrow">{label}</div>
-      <div className={`num text-[24px] font-semibold mt-1 leading-tight ${color}`}>{value}</div>
+      <div className={`num text-[24px] font-semibold mt-1 leading-tight ${color}`}><AnimatedValue value={value} /></div>
       {sub && <div className="text-xs text-slate-2 mt-0.5">{sub}</div>}
     </div>
   );
@@ -82,7 +83,7 @@ export function Lead({ eyebrow, title, href, stats, note, tone = "accent" }: { e
           {href ? <Link href={href} className="text-[22px] md:text-[26px] font-semibold font-display hero-title hover:underline underline-offset-4 decoration-accent/60">{title}</Link> : <div className="text-[22px] md:text-[26px] font-semibold font-display hero-title">{title}</div>}
           {note && <div className="text-[13px] text-slate-2 mt-1.5 max-w-2xl leading-relaxed">{note}</div>}
         </div>
-        <div className="flex gap-5 shrink-0">{stats.map((s) => <div key={s.l}><div className="eyebrow">{s.l}</div><div className="num text-[20px] text-slate-1 leading-tight">{s.v}</div></div>)}</div>
+        <div className="flex gap-5 shrink-0">{stats.map((s) => <div key={s.l}><div className="eyebrow">{s.l}</div><div className="num text-[20px] text-slate-1 leading-tight"><AnimatedValue value={s.v} /></div></div>)}</div>
       </div>
     </div>
   );

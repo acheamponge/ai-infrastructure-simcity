@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useFocusTrap } from "./use-focus-trap";
 import type { PlannerPlan, PlannerEvent } from "@/lib/agents/planner";
 
 interface Turn { role: "user" | "assistant"; content: string; steps?: Array<{ name: string; summary: string }>; plan?: PlannerPlan | null; model?: string; error?: string }
 
-declare global { interface Window { __simcity?: { applyFocus: (f: { regionId: string; cfg?: Record<string, unknown>; label?: string; autoBreakGround?: boolean }) => void } } }
+declare global { interface Window { __simcity?: { applyFocus: (f: { regionId: string; cfg?: Record<string, unknown>; label?: string; autoBreakGround?: boolean }) => void; selectRegion?: (id: string) => void } } }
 
 const SUGGESTIONS = [
   "Plan a 300 MW GB200 campus in Québec on hydro",
@@ -23,6 +24,8 @@ export function PlannerChat() {
   const [busy, setBusy] = useState(false);
   const [live, setLive] = useState<{ steps: Array<{ name: string; summary: string }>; status: string }>({ steps: [], status: "" });
   const listRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, open);
   useEffect(() => { listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }); }, [turns, live, open]);
 
   async function send(text: string) {
@@ -49,6 +52,7 @@ export function PlannerChat() {
       }
       if (!final) throw new Error("the planner stream ended without a reply");
       if (final.type === "error") throw new Error(final.text);
+      if (final.plan) window.__simcity?.selectRegion?.(final.plan.focus.regionId);
       setTurns((t) => [...t, { role: "assistant", content: final!.reply || (final!.plan ? "Plan recorded." : "I could not finish a plan from that."), steps, plan: final!.plan, model: final!.provider && final!.model ? `${final!.provider} · ${final!.model}` : undefined }]);
     } catch (e) {
       setTurns((t) => [...t, { role: "assistant", content: "", error: e instanceof Error ? e.message : String(e), steps }]);
@@ -69,7 +73,7 @@ export function PlannerChat() {
         </button>
       )}
       {open && (
-        <div className="fixed bottom-5 right-5 z-40 w-[min(420px,calc(100vw-24px))] h-[min(620px,calc(100vh-110px))] flex flex-col rounded-xl border border-line bg-panel/95 backdrop-blur shadow-2xl shadow-black/60 text-sm">
+        <div ref={panelRef} role="dialog" aria-label="Plan with Muse" className="fixed bottom-5 right-5 z-40 w-[min(420px,calc(100vw-24px))] h-[min(620px,calc(100vh-110px))] flex flex-col rounded-xl border border-line bg-panel/95 backdrop-blur shadow-2xl shadow-black/60 text-sm">
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-line">
             <div><div className="font-semibold text-slate-1">Plan with Muse</div><div className="text-[11px] text-slate-3">Muse Spark over the SimCity estimation engine</div></div>
             <button type="button" onClick={() => setOpen(false)} className="text-slate-3 hover:text-slate-1 text-lg leading-none" aria-label="Close">×</button>
@@ -110,6 +114,8 @@ export function PlannerChat() {
 
 function PlanCard({ p, onBuild }: { p: PlannerPlan; onBuild: () => void }) {
   const e = p.estimate; const v = p.verdict.replace("_", " ").toLowerCase();
+  const [copied, setCopied] = useState(false);
+  const share = async () => { const enc = btoa(unescape(encodeURIComponent(JSON.stringify({ ...p.focus, autoBreakGround: true })))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); const url = `${location.origin}/?focus=${enc}`; try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { prompt("Copy this link", url); } };
   return (
     <div className="rounded-lg border border-line bg-paper/70 p-3 space-y-2">
       <div className="flex items-start justify-between gap-2"><div className="font-semibold text-slate-1">{p.title}</div><span className={`pill ${p.verdict === "GO" ? "pill-go" : p.verdict === "NO_GO" ? "pill-nogo" : "pill-cond"}`}>{v}</span></div>
@@ -123,6 +129,7 @@ function PlanCard({ p, onBuild }: { p: PlannerPlan; onBuild: () => void }) {
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onBuild} className="px-3 py-1.5 rounded-md bg-build text-paper font-semibold text-[12px]">Build it in the simulation</button>
         {p.dossierUrl && <a href={p.dossierUrl} className="px-3 py-1.5 rounded-md border border-line text-[12px] text-slate-1">Open dossier</a>}
+        <button type="button" onClick={share} className="px-3 py-1.5 rounded-md border border-line text-[12px] text-slate-2 hover:text-ink">{copied ? "Link copied" : "Share plan"}</button>
       </div>
     </div>
   );
