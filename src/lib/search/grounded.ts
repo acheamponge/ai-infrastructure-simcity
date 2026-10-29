@@ -23,11 +23,12 @@ export async function groundedSearch(query: string, opts: { maxResults?: number;
   const j = (await r.json()) as { output?: OutputItem[]; model?: string };
   const out = j.output ?? [];
   const searched = out.some((o) => o.type === "web_search_call");
+  const norm = (u: string) => u.replace(/#.*$/, "").replace(/[?&](utm_[^&]+|ref=[^&]+)/g, "").replace(/\/+$/, "");
   const seen = new Map<string, SearchHit>();
   // cited sources first: they are the ones the model stood behind
   let text = "";
-  for (const o of out) if (o.type === "message") for (const c of o.content ?? []) if (c.type === "output_text") { text += (c.text ?? "") + "\n"; for (const a of c.annotations ?? []) if (a.type === "url_citation" && a.url && !seen.has(a.url)) seen.set(a.url, { title: a.title ?? a.url, url: a.url, content: "" }); }
-  for (const o of out) if (o.type === "web_search_call") for (const s of o.results ?? []) if (s.url) { const prev = seen.get(s.url); if (prev) { if (!prev.content) prev.content = s.snippet ?? ""; if (!prev.title || prev.title === s.url) prev.title = s.title ?? prev.title; } else seen.set(s.url, { title: s.title ?? s.url, url: s.url, content: s.snippet ?? "" }); }
+  for (const o of out) if (o.type === "message") for (const c of o.content ?? []) if (c.type === "output_text") { text += (c.text ?? "") + "\n"; for (const a of c.annotations ?? []) if (a.type === "url_citation" && a.url && !seen.has(norm(a.url))) seen.set(norm(a.url), { title: a.title ?? a.url, url: a.url, content: "" }); }
+  for (const o of out) if (o.type === "web_search_call") for (const s of o.results ?? []) if (s.url) { const prev = seen.get(norm(s.url)); if (prev) { if (!prev.content) prev.content = s.snippet ?? ""; if (!prev.title || prev.title === s.url) prev.title = s.title ?? prev.title; } else seen.set(norm(s.url), { title: s.title ?? s.url, url: s.url, content: s.snippet ?? "" }); }
   // sources with no snippet take the model's own summary as their content, so the digest still has something to extract from
   const hits = [...seen.values()].map((h) => ({ ...h, content: h.content || text.trim().slice(0, 600) })).slice(0, opts.maxResults ?? 6);
   return { hits, text: text.trim(), searched, model: j.model ?? model };
