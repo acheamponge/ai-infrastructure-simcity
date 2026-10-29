@@ -61,7 +61,7 @@ h1, h2, h3 { letter-spacing: -0.01em; font-family: var(--font-display); }
 
 /* entrance */
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-.rise { animation: rise .55s cubic-bezier(.2,.7,.2,1) both; }
+.rise { animation: rise .55s cubic-bezier(.2,.7,.2,1) backwards; }
 .rise-2 { animation-delay: .08s; } .rise-3 { animation-delay: .16s; } .rise-4 { animation-delay: .24s; } .rise-5 { animation-delay: .32s; }
 @media (prefers-reduced-motion: reduce) { .rise, .card-hover { animation: none; transition: none; } }
 

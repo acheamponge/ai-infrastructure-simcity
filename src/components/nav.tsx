@@ -13,13 +13,13 @@ export function Nav() {
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-teal"><circle cx="12" cy="12" r="8" /><path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16" strokeLinecap="round" /></svg>
           </span>
           <span className="font-display font-semibold tracking-tight text-[15px] leading-none">
-            <span className="text-ink">AI Infrastructure</span> <span className="glow-text">SimCity</span>
+            <span className="text-ink hidden sm:inline">AI Infrastructure </span><span className="glow-text">SimCity</span>
           </span>
         </Link>
         <NavLinks />
         <div className="ml-auto flex items-center gap-3 text-[12px] shrink-0">
           <span className="hidden lg:inline-block"><span className={`pill ${live ? "pill-go pill-live" : "pill-cond"}`} title={live ? `Primary ${env.llmProvider}${env.llmProvider === "meta" && env.crusoeKey ? ", Crusoe fallback" : ""}; Tavily search` : "No inference key configured"}>{live ? `agents live · ${brain}` : "agents in fixture mode"}</span></span>
-          <Link href="/sites/new" className="btn btn-primary !py-1.5 !px-3 !text-[11px] hidden sm:inline-flex">Register a site</Link>
+          <span className="hidden sm:inline-block"><Link href="/sites/new" className="btn btn-primary !py-1.5 !px-3 !text-[11px]">Register a site</Link></span>
         </div>
       </div>
     </header>
