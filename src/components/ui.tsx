@@ -65,3 +65,25 @@ export function SiteLink({ id, name }: { id: string; name: string }) {
 export function Empty({ children }: { children: React.ReactNode }) {
   return <div className="card p-8 text-center text-sm text-slate-2">{children}</div>;
 }
+
+/** A quiet reminder that every figure is a screening estimate from the methodology page, not a quote. */
+export function Screening({ children = "screening-grade estimates" }: { children?: React.ReactNode }) {
+  return <span className="screening" title="Deterministic engine with published coefficients; see Methodology. Treat as ±30% order-of-magnitude, not a quote.">{children}</span>;
+}
+
+/** The one-sentence story a board opens on: a site, three numbers, and the thing to watch. */
+export function Lead({ eyebrow, title, href, stats, note, tone = "accent" }: { eyebrow: string; title: string; href?: string; stats: Array<{ l: string; v: string }>; note?: React.ReactNode; tone?: "accent" | "amber" | "violet" }) {
+  const cls = tone === "amber" ? "card-amber" : tone === "violet" ? "card-violet" : "";
+  return (
+    <div className={`card card-accent ${cls} p-5 rise`}>
+      <div className="eyebrow eyebrow-dot mb-2">{eyebrow}</div>
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          {href ? <Link href={href} className="text-[22px] md:text-[26px] font-semibold font-display hero-title hover:underline underline-offset-4 decoration-accent/60">{title}</Link> : <div className="text-[22px] md:text-[26px] font-semibold font-display hero-title">{title}</div>}
+          {note && <div className="text-[13px] text-slate-2 mt-1.5 max-w-2xl leading-relaxed">{note}</div>}
+        </div>
+        <div className="flex gap-5 shrink-0">{stats.map((s) => <div key={s.l}><div className="eyebrow">{s.l}</div><div className="num text-[20px] text-slate-1 leading-tight">{s.v}</div></div>)}</div>
+      </div>
+    </div>
+  );
+}

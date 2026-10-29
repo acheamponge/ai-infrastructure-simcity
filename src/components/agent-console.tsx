@@ -52,7 +52,7 @@ export function AgentConsole({ mode }: { mode: "live" | "fixture" }) {
             {runs.map((r) => (
               <RunRow key={r.id} r={r} open={open === r.id} toggle={() => setOpen(open === r.id ? null : r.id)} />
             ))}
-            {runs.length === 0 && <tr><td colSpan={6} className="text-center text-slate-2 py-6">No runs yet.</td></tr>}
+            {runs.length === 0 && <tr><td colSpan={6} className="text-center text-slate-2 py-8"><div className="font-medium text-slate-1">No runs yet</div><div className="text-xs mt-1">Run a discovery above, or open any site and press Assess. Each run appears here with its model, sources and token use.</div></td></tr>}
           </tbody>
         </table>
       </div>

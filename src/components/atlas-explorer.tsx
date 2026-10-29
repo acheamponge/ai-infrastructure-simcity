@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { SiteBundle } from "@/lib/bundles";
 import { estimate } from "@/lib/model/estimate";
-import { money, num, years } from "@/lib/format";
+import { money, num, years, statusLabel, verdictLabel } from "@/lib/format";
 import { Chips, DataTable, type Column } from "./data-table";
 import { StatusPill, VerdictPill } from "./ui";
 import { SiteMapLoader } from "./site-map-loader";
@@ -49,8 +49,8 @@ export function AtlasExplorer({ sites }: { sites: SiteBundle[] }) {
           <span className="text-xs text-slate-2 ml-auto num">{rows.length} sites · {num(mw)} MW</span>
         </div>
         <div className="flex flex-wrap gap-x-6 gap-y-2 items-start">
-          <div><div className="eyebrow mb-1">Status</div><Chips options={STATUSES} active={statuses} onToggle={toggle(setStatuses)} /></div>
-          <div><div className="eyebrow mb-1">Verdict</div><Chips options={["GO", "CONDITIONAL", "NO_GO", "NONE"]} active={verdicts} onToggle={toggle(setVerdicts)} /></div>
+          <div><div className="eyebrow mb-1">Status</div><Chips options={STATUSES} active={statuses} onToggle={toggle(setStatuses)} labels={statusLabel} /></div>
+          <div><div className="eyebrow mb-1">Verdict</div><Chips options={["GO", "CONDITIONAL", "NO_GO", "NONE"]} active={verdicts} onToggle={toggle(setVerdicts)} labels={{ ...verdictLabel, NONE: "Not assessed" }} /></div>
           <div className="min-w-0"><div className="eyebrow mb-1">Country</div><Chips options={allCountries} active={countries} onToggle={toggle(setCountries)} /></div>
         </div>
       </div>

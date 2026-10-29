@@ -4,6 +4,7 @@ import { Nav } from "@/components/nav";
 import { MainShell } from "@/components/main-shell";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3100"),
   title: "AI Infrastructure SimCity",
   description: "Simulate, estimate and decide where AI data centers get built: a live registry, an estimation engine, research and advisory agents, and a playable world.",
 };

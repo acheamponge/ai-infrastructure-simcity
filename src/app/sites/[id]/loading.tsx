@@ -1,0 +1,2 @@
+import { KpiSkeleton, MapSkeleton, ChartSkeleton, Shimmer } from "@/components/skeleton";
+export default function Loading() { return <div className="flex flex-col gap-6" aria-busy><div><Shimmer className="h-2.5 w-32 mb-3" /><Shimmer className="h-8 w-96 max-w-full mb-2" /><Shimmer className="h-3 w-72" /></div><KpiSkeleton n={5} /><div className="grid lg:grid-cols-[1fr_1fr] gap-5"><ChartSkeleton /><MapSkeleton height={320} /></div></div>; }

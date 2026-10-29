@@ -72,7 +72,7 @@ h1, h2, h3 { letter-spacing: -0.01em; font-family: var(--font-display); }
 .section-title::before { content: ""; width: 3px; height: 16px; border-radius: 2px; background: linear-gradient(180deg, var(--color-accent), var(--color-accent-dim)); box-shadow: 0 0 12px rgba(63,216,198,.5); }
 
 .table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
-.table th { text-align: left; font-weight: 600; color: var(--color-slate-2); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; padding: 9px 12px; border-bottom: 1px solid var(--color-line-2); white-space: nowrap; font-family: var(--font-display); background: rgba(255,255,255,.02); }
+.table th { text-align: left; font-weight: 600; color: var(--color-slate-2); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; padding: 9px 12px; border-bottom: 1px solid var(--color-line-2); white-space: normal; line-height: 1.25; vertical-align: bottom; font-family: var(--font-display); background: rgba(255,255,255,.02); }
 .table th:first-child { border-top-left-radius: 8px; } .table th:last-child { border-top-right-radius: 8px; }
 .table td { padding: 10px 12px; border-bottom: 1px solid var(--color-line); vertical-align: top; }
 .table tr:last-child td { border-bottom: 0; }
@@ -111,7 +111,7 @@ a { color: inherit; }
 ::-webkit-scrollbar-thumb:hover { background: #33425a; }
 ::-webkit-scrollbar-track { background: transparent; }
 
-.leaflet-container { font-family: inherit; background: #080c12; border-radius: 12px; }
+.leaflet-container { font-family: inherit; background: #080c12; border-radius: 12px; isolation: isolate; z-index: 0; }
 .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--color-panel); color: var(--color-ink); box-shadow: 0 4px 16px rgba(0,0,0,.5); }
 .leaflet-control-zoom a { background: var(--color-panel-2); color: var(--color-ink); border-color: var(--color-line-2); }
 .leaflet-control-attribution { background: rgba(8,12,18,.7) !important; color: var(--color-faint) !important; }
@@ -125,3 +125,23 @@ a { color: inherit; }
   .table th, .table td { padding: 7px 8px; }
   .card { border-radius: 12px; }
 }
+
+/* skeletons */
+.skel { position: relative; overflow: hidden; border-radius: 6px; background: rgba(255,255,255,.06); }
+.skel::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.07), transparent); animation: shimmer 1.6s infinite; }
+@keyframes shimmer { to { transform: translateX(100%); } }
+
+/* selects look like ours, not the browser's */
+select { appearance: none; -webkit-appearance: none; padding-right: 30px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2393a1b6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; background-color: rgba(8, 12, 18, .7); cursor: pointer; }
+select option { background: var(--color-panel); color: var(--color-ink); }
+
+/* Leaflet controls on the dark map; Leaflet's own stylesheet loads after ours, hence the weight */
+.leaflet-container .leaflet-bar { border: 1px solid var(--color-line-2) !important; box-shadow: 0 6px 18px rgba(0,0,0,.4) !important; border-radius: 8px !important; overflow: hidden; }
+.leaflet-container .leaflet-bar a { background: rgba(19, 27, 38, .95) !important; color: var(--color-ink) !important; border-bottom-color: var(--color-line) !important; width: 30px; height: 30px; line-height: 30px; }
+.leaflet-container .leaflet-bar a:hover { background: var(--color-panel-2) !important; color: var(--color-accent) !important; }
+.leaflet-container .leaflet-bar a.leaflet-disabled { color: var(--color-faint) !important; }
+
+/* filter chips */
+.chip-on { background: rgba(63, 216, 198, .16) !important; color: #bff2ea !important; border-color: rgba(63, 216, 198, .6) !important; }
+.screening { font: 500 10px/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--color-slate-3); display: inline-flex; align-items: center; gap: 6px; }
+.screening::before { content: "±"; font-size: 12px; color: var(--color-amber); }

@@ -543,6 +543,7 @@ let clock=null;
 function restartClock(){if(clock)clearInterval(clock);clock=null;if(S.running)clock=setInterval(tick,Math.round(900/S.speed))}
 function animate(){
   if(stopped||!$('map'))return;
+  if(!S.firstFrame){S.firstFrame=true;const root=document.querySelector('.simroot');if(root)root.classList.add('ready')}
   if(G.target){const dl=((G.target.lam-G.lam+540)%360)-180,dp=G.target.phi-G.phi;G.lam+=dl*0.12;G.phi+=dp*0.12;if(Math.abs(dl)<0.15&&Math.abs(dp)<0.15)G.target=null}
   else if(G.auto&&!ptr&&!REDUCE&&V.mode==='globe')G.lam+=0.05;
   stepView();

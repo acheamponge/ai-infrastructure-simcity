@@ -28,9 +28,9 @@ export function DataTable<T>({ rows, columns, rowKey, initialSort, onRowClick, e
   return (
     <div className="card overflow-x-auto">
       <table className="table">
-        <thead><tr>{columns.map((c) => <th key={c.key} className={`${c.numeric ? "r" : ""} ${c.sort ? "cursor-pointer select-none hover:text-ink" : ""}`} onClick={() => click(c)}>{c.label}{sort?.key === c.key ? (sort.dir === "asc" ? " ▲" : " ▼") : ""}</th>)}</tr></thead>
+        <thead><tr>{columns.map((c) => <th key={c.key} className={`${c.numeric ? "r" : ""} ${c.sort ? "cursor-pointer select-none hover:text-ink" : ""}`} onClick={() => click(c)}>{c.label}{sort?.key === c.key && <span className="ml-1 text-accent" aria-label={sort.dir === "asc" ? "sorted ascending" : "sorted descending"}>{sort.dir === "asc" ? "▲" : "▼"}</span>}</th>)}</tr></thead>
         <tbody>
-          {sorted.map((r) => <tr key={rowKey(r)} onClick={onRowClick ? () => onRowClick(r) : undefined} className={onRowClick ? "cursor-pointer hover:bg-paper" : ""}>{columns.map((c) => <td key={c.key} className={`${c.numeric ? "r" : ""} ${c.className ?? ""}`}>{c.render(r)}</td>)}</tr>)}
+          {sorted.map((r) => <tr key={rowKey(r)} onClick={onRowClick ? () => onRowClick(r) : undefined} className={onRowClick ? "cursor-pointer" : ""}>{columns.map((c) => <td key={c.key} className={`${c.numeric ? "r" : ""} ${c.className ?? ""}`}>{c.render(r)}</td>)}</tr>)}
           {sorted.length === 0 && <tr><td colSpan={columns.length} className="text-center text-slate-2 py-8">{empty}</td></tr>}
         </tbody>
       </table>
@@ -41,17 +41,17 @@ export function DataTable<T>({ rows, columns, rowKey, initialSort, onRowClick, e
 export function Slider({ label, value, min, max, step, format, onChange }: { label: string; value: number; min: number; max: number; step: number; format: (v: number) => string; onChange: (v: number) => void }) {
   return (
     <label className="flex flex-col gap-1 text-[12px] min-w-[180px]">
-      <span className="flex justify-between"><span className="eyebrow">{label}</span><span className="num font-medium">{format(value)}</span></span>
+      <span className="flex justify-between"><span className="eyebrow">{label}</span><span className="sr-only">: </span><span className="num font-medium">{format(value)}</span></span>
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
     </label>
   );
 }
 
-export function Chips({ options, active, onToggle, all = "All" }: { options: string[]; active: Set<string>; onToggle: (v: string | null) => void; all?: string }) {
+export function Chips({ options, active, onToggle, all = "All", labels }: { options: string[]; active: Set<string>; onToggle: (v: string | null) => void; all?: string; labels?: Record<string, string> }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
-      <button className={`pill hover:bg-paper ${active.size === 0 ? "!bg-navy !text-white !border-navy" : ""}`} onClick={() => onToggle(null)}>{all}</button>
-      {options.map((o) => <button key={o} className={`pill hover:bg-paper ${active.has(o) ? "!bg-navy !text-white !border-navy" : ""}`} onClick={() => onToggle(o)}>{o}</button>)}
+    <div className="flex flex-wrap gap-1.5" role="group">
+      <button type="button" aria-pressed={active.size === 0} className={`pill hover:border-accent/60 transition-colors ${active.size === 0 ? "chip-on" : ""}`} onClick={() => onToggle(null)}>{all}</button>
+      {options.map((o) => <button type="button" key={o} aria-pressed={active.has(o)} className={`pill hover:border-accent/60 transition-colors ${active.has(o) ? "chip-on" : ""}`} onClick={() => onToggle(o)}>{labels?.[o] ?? o}</button>)}
     </div>
   );
 }
