@@ -1,35 +1,25 @@
 import Link from "next/link";
 import { env } from "@/lib/env";
-
-const links = [
-  ["/", "Simulation"],
-  ["/overview", "Overview"],
-  ["/atlas", "Atlas"],
-  ["/executive", "Executive"],
-  ["/policy", "Policy"],
-  ["/investor", "Investor"],
-  ["/agents", "Agents"],
-  ["/methodology", "Methodology"],
-] as const;
+import { NavLinks } from "./nav-links";
 
 export function Nav() {
+  const live = env.agentMode === "live";
+  const brain = env.llmProvider === "meta" ? `Muse · ${env.meta.modelPlanner}` : `Crusoe · ${env.modelAdvisor}`;
   return (
-    <header className="bg-navy text-white">
-      <div className="max-w-[1600px] mx-auto px-5 h-14 flex items-center gap-6">
-        <Link href="/" className="font-semibold tracking-tight text-[15px] flex items-center gap-2 whitespace-nowrap">
-          <span className="inline-block w-2.5 h-2.5 rounded-sm bg-emerald-400" aria-hidden />
-          AI Infrastructure SimCity
+    <header className="sticky top-0 z-30 border-b border-white/5 bg-[rgba(10,14,20,.72)] backdrop-blur-xl">
+      <div className="max-w-[1600px] mx-auto px-5 h-14 flex items-center gap-5">
+        <Link href="/" className="flex items-center gap-2.5 whitespace-nowrap group">
+          <span className="relative inline-grid place-items-center w-7 h-7 rounded-lg bg-gradient-to-br from-accent/30 to-violet/20 border border-white/10 shadow-[0_0_18px_rgba(63,216,198,.25)]" aria-hidden>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-teal"><circle cx="12" cy="12" r="8" /><path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16" strokeLinecap="round" /></svg>
+          </span>
+          <span className="font-display font-semibold tracking-tight text-[15px] leading-none">
+            <span className="text-ink">AI Infrastructure</span> <span className="glow-text">SimCity</span>
+          </span>
         </Link>
-        <nav className="flex items-center gap-1 text-[13px] overflow-x-auto">
-          {links.map(([href, label]) => (
-            <Link key={href} href={href} className="px-3 py-1.5 rounded hover:bg-white/10 whitespace-nowrap">
-              {label}
-            </Link>
-          ))}
-        </nav>
-        <div className="ml-auto flex items-center gap-3 text-[12px] text-white/70">
-          <span className={`pill hidden md:inline-block ${env.agentMode === "live" ? "pill-go" : "pill-cond"}`}>{env.agentMode === "live" ? `agents live · ${env.modelAdvisor} / ${env.modelResearch} · tavily` : "agents in fixture mode"}</span>
-          <Link href="/sites/new" className="btn !py-1 !px-2.5 !text-[12px] !bg-white/10 !text-white !border-white/20">Register a site</Link>
+        <NavLinks />
+        <div className="ml-auto flex items-center gap-3 text-[12px] shrink-0">
+          <span className="hidden lg:inline-block"><span className={`pill ${live ? "pill-go pill-live" : "pill-cond"}`} title={live ? `Primary ${env.llmProvider}${env.llmProvider === "meta" && env.crusoeKey ? ", Crusoe fallback" : ""}; Tavily search` : "No inference key configured"}>{live ? `agents live · ${brain}` : "agents in fixture mode"}</span></span>
+          <Link href="/sites/new" className="btn btn-primary !py-1.5 !px-3 !text-[11px] hidden sm:inline-flex">Register a site</Link>
         </div>
       </div>
     </header>

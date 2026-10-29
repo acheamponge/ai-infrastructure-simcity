@@ -13,25 +13,26 @@
 .simroot *{box-sizing:border-box}
 .simroot{height:100%}
 .simroot{position:relative;height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:14px;line-height:1.45}
-.simroot button{font:inherit;color:inherit;background:var(--panel2);border:1px solid var(--line2);border-radius:4px;padding:5px 10px;cursor:pointer}
+.simroot button{font:inherit;color:inherit;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid var(--line2);border-radius:8px;padding:5px 10px;cursor:pointer;transition:border-color .15s,transform .15s,box-shadow .15s}
 .simroot button:hover{border-color:var(--accent-dim)}
 .simroot button:focus-visible,.simroot input:focus-visible,.simroot select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.simroot button.on{background:var(--accent-dim);border-color:var(--accent);color:#fff}
-.simroot button.primary{background:var(--accent);color:#06211e;border-color:var(--accent);font-family:var(--font-display);font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:10px 14px;width:100%}
+.simroot button.on{background:linear-gradient(180deg,rgba(63,216,198,.28),rgba(31,127,118,.5));border-color:var(--accent);color:#fff;box-shadow:0 0 0 1px rgba(63,216,198,.2),0 0 14px rgba(63,216,198,.2)}
+.simroot button.primary{background:linear-gradient(135deg,#5fe0cf 0%,#3fd8c6 55%,#27b5a5 100%);color:#06211e;border-color:rgba(95,224,207,.7);font-family:var(--font-display);font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:11px 14px;width:100%;box-shadow:0 0 0 1px rgba(63,216,198,.25),0 8px 24px rgba(63,216,198,.22)}
+.simroot button.primary:hover{box-shadow:0 0 0 1px rgba(63,216,198,.4),0 12px 32px rgba(63,216,198,.32)}
 .simroot button.primary:disabled{opacity:.45;cursor:not-allowed}
-.simroot select,.simroot input[type=number]{font:inherit;color:var(--fg);background:var(--bg2);border:1px solid var(--line2);border-radius:4px;padding:5px 8px;width:100%}
+.simroot select,.simroot input[type=number]{font:inherit;color:var(--fg);background:rgba(8,12,18,.7);border:1px solid var(--line2);border-radius:8px;padding:6px 9px;width:100%}
 .simroot input[type=range]{width:100%;accent-color:var(--accent)}
 .simroot .mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
 .simroot .app{display:grid;grid-template-rows:auto 1fr auto;height:100%;min-height:0}
 /* top bar */
-.simroot .top{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:var(--bg2);border-bottom:1px solid var(--line)}
+.simroot .top{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:linear-gradient(90deg,rgba(63,216,198,.08),rgba(15,21,30,.9) 30%,rgba(15,21,30,.9) 70%,rgba(240,180,67,.06));border-bottom:1px solid rgba(255,255,255,.06);backdrop-filter:blur(10px)}
 .simroot .brand{display:flex;flex-direction:column;line-height:1.1}
-.simroot .brand .name{font-family:var(--font-display);font-weight:700;font-size:18px;letter-spacing:.02em;color:var(--accent)}
+.simroot .brand .name{font-family:var(--font-display);font-weight:700;font-size:18px;letter-spacing:.02em;background:linear-gradient(92deg,#fff,#bff2ea 60%,#3fd8c6 120%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .simroot .brand .tag{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
 .simroot .stats{display:flex;gap:18px;flex-wrap:wrap;flex:1}
-.simroot .stat{display:flex;flex-direction:column;min-width:84px}
+.simroot .stat{display:flex;flex-direction:column;min-width:96px;padding:5px 10px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05)}
 .simroot .stat label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-.simroot .stat b{font-family:var(--font-mono);font-weight:500;font-size:15px;font-variant-numeric:tabular-nums}
+.simroot .stat b{font-family:var(--font-mono);font-weight:500;font-size:15px;font-variant-numeric:tabular-nums;color:#fff}
 .simroot .stat b.neg{color:var(--crit)}
 .simroot .time{display:flex;gap:6px;align-items:center}
 .simroot .time .speeds{display:flex;gap:2px}
@@ -191,3 +192,13 @@
 .simroot .inc button{color:var(--build);border-color:var(--build)}
 .simroot .hudinc .none{color:var(--faint);font-family:var(--font-mono);font-size:10px}
 @media (max-width:900px){.simroot .hudinc{top:46px;width:min(250px,52%)}.simroot .hudcard{max-width:46%}}
+
+/* modern pass: glassier panels, accent tabs, softer cards */
+.simroot .panel{background:linear-gradient(180deg,rgba(19,27,38,.92),rgba(13,19,27,.95));backdrop-filter:blur(10px)}
+.simroot .card{border-radius:12px;background:linear-gradient(180deg,rgba(27,37,52,.6),rgba(18,26,37,.75));border:1px solid rgba(255,255,255,.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.simroot .tabs button{border-radius:0;background:transparent;border:0;border-bottom:2px solid transparent;color:var(--muted);letter-spacing:.14em}
+.simroot .tabs button.on{background:transparent;color:#fff;border-bottom-color:var(--accent);box-shadow:none;text-shadow:0 0 12px rgba(63,216,198,.5)}
+.simroot .hudcard,.simroot .hudinc,.simroot .hudnav,.simroot #backGlobe{backdrop-filter:blur(10px);border-radius:10px}
+.simroot .overlays button{border-radius:999px;padding:4px 11px;font-size:12px}
+.simroot .search input{border-radius:999px}
+.simroot .log{background:linear-gradient(180deg,rgba(15,21,30,.6),rgba(8,12,18,.9))}

@@ -2,11 +2,13 @@ import Link from "next/link";
 import { statusLabel, verdictLabel } from "@/lib/format";
 
 export function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "good" | "warn" | "bad" }) {
-  const color = tone === "good" ? "text-teal" : tone === "warn" ? "text-amber" : tone === "bad" ? "text-crimson" : "text-ink";
+  const color = tone === "good" ? "text-teal" : tone === "warn" ? "text-amber" : tone === "bad" ? "text-crimson" : "glow-text";
+  const bar = tone === "good" ? "from-teal" : tone === "warn" ? "from-amber" : tone === "bad" ? "from-crimson" : "from-accent";
   return (
-    <div className="card px-4 py-3 min-w-0">
+    <div className="card card-hover px-4 py-3 min-w-0 overflow-hidden">
+      <div className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-gradient-to-b ${bar} to-transparent`} aria-hidden />
       <div className="eyebrow">{label}</div>
-      <div className={`num text-[22px] font-semibold mt-1 ${color}`}>{value}</div>
+      <div className={`num text-[24px] font-semibold mt-1 leading-tight ${color}`}>{value}</div>
       {sub && <div className="text-xs text-slate-2 mt-0.5">{sub}</div>}
     </div>
   );
@@ -24,10 +26,10 @@ export function VerdictPill({ verdict }: { verdict: string | null | undefined })
 }
 
 export function Score({ value, label }: { value: number; label?: string }) {
-  const tone = value >= 65 ? "bg-emerald-500" : value >= 45 ? "bg-amber-500" : "bg-red-500";
+  const tone = value >= 65 ? "from-teal to-accent" : value >= 45 ? "from-amber to-[#f7d27a]" : "from-crimson to-[#ff8a95]";
   return (
     <div className="flex items-center gap-2 min-w-[120px]">
-      <div className="flex-1 h-1.5 rounded bg-slate-200 overflow-hidden"><div className={`h-full ${tone}`} style={{ width: `${Math.max(2, Math.min(100, value))}%` }} /></div>
+      <div className="flex-1 h-1.5 rounded-full bg-white/8 overflow-hidden"><div className={`h-full rounded-full bg-gradient-to-r ${tone}`} style={{ width: `${Math.max(2, Math.min(100, value))}%` }} /></div>
       <span className="num text-xs w-7 text-right">{Math.round(value)}</span>
       {label && <span className="text-xs text-slate-2">{label}</span>}
     </div>
@@ -37,7 +39,7 @@ export function Score({ value, label }: { value: number; label?: string }) {
 export function SectionTitle({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="flex items-end justify-between gap-4 mb-3">
-      <h2 className="text-[15px] font-semibold">{children}</h2>
+      <h2 className="section-title">{children}</h2>
       {action}
     </div>
   );
@@ -45,11 +47,11 @@ export function SectionTitle({ children, action }: { children: React.ReactNode; 
 
 export function PageHeader({ eyebrow, title, lede, action }: { eyebrow?: string; title: string; lede?: string; action?: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
+    <div className="flex flex-wrap items-end justify-between gap-4 mb-7 rise">
       <div className="max-w-3xl">
-        {eyebrow && <div className="eyebrow mb-1">{eyebrow}</div>}
-        <h1 className="text-2xl font-semibold">{title}</h1>
-        {lede && <p className="text-sm text-slate-2 mt-1.5 leading-relaxed">{lede}</p>}
+        {eyebrow && <div className="eyebrow eyebrow-dot mb-2">{eyebrow}</div>}
+        <h1 className="text-[28px] md:text-[32px] font-semibold leading-tight hero-title">{title}</h1>
+        {lede && <p className="text-[14px] text-slate-2 mt-2 leading-relaxed">{lede}</p>}
       </div>
       {action}
     </div>
@@ -57,7 +59,7 @@ export function PageHeader({ eyebrow, title, lede, action }: { eyebrow?: string;
 }
 
 export function SiteLink({ id, name }: { id: string; name: string }) {
-  return <Link href={`/sites/${id}`} className="font-medium text-accent hover:underline">{name}</Link>;
+  return <Link href={`/sites/${id}`} className="font-medium text-accent hover:underline underline-offset-2">{name}</Link>;
 }
 
 export function Empty({ children }: { children: React.ReactNode }) {
