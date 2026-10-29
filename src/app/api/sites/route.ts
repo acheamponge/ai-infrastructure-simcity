@@ -22,3 +22,14 @@ export async function POST(req: Request) {
   await ensureBaseline(site);
   return NextResponse.json({ id: site.id });
 }
+
+/** Remove a discovered or manually registered site. Curated entries cannot be deleted this way. */
+export async function DELETE(req: Request) {
+  const id = new URL(req.url).searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+  const site = await prisma.site.findUnique({ where: { id } });
+  if (!site) return NextResponse.json({ error: "unknown site" }, { status: 404 });
+  if (site.curated) return NextResponse.json({ error: "curated sites are protected; edit the seed instead" }, { status: 403 });
+  await prisma.site.delete({ where: { id } }); // profile, scenarios and assessments cascade
+  return NextResponse.json({ deleted: id, name: site.name });
+}
