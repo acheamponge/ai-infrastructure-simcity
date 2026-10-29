@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { env } from "@/lib/env";
+import { searchWeb } from "@/lib/search/web";
 
 /** Reports whether each inference provider and the search service accept the configured credentials. Keys are never returned. */
-export async function GET() {
+export async function GET(req: Request) {
+  // ?search=<query> runs one web search through the agents' helper and reports which engine answered
+  const q = new URL(req.url).searchParams.get("search");
+  if (q) { try { const t0 = Date.now(); const r = await searchWeb(q, { maxResults: 5 }); return NextResponse.json({ query: q, engine: r.engine, note: r.note, tookMs: Date.now() - t0, hits: r.hits.map((h) => ({ title: h.title, url: h.url, snippet: h.content.slice(0, 160) })) }); } catch (e) { return NextResponse.json({ query: q, error: e instanceof Error ? e.message : String(e) }, { status: 502 }); } }
   const fingerprint = (k: string) => (k ? `${k.length} chars, starts "${k.slice(0, 4)}…"` : "not set");
   const probe = async (baseUrl: string, key: string, model: string) => {
     try {

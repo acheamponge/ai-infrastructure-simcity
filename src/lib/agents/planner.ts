@@ -13,7 +13,7 @@ import type { EnergyMix, EstimateResult, RegionFactors, SiteSpec, GpuClass } fro
 import { mixFromNotes, profileToFactors } from "../sites";
 import { toSimCfg } from "../sim-bridge";
 import { gate } from "./assess";
-import { tavilySearch } from "../search/tavily";
+import { searchWeb } from "../search/web";
 import { REGIONS } from "@/sim/regions";
 
 export interface Place { id: string; name: string; country: string; lat: number; lon: number; kind: "region" | "site"; factors: RegionFactors; flare: boolean; mix: EnergyMix; status?: string; capacityMw?: number | null; operator?: string | null }
@@ -124,9 +124,9 @@ export async function* plan(history: Array<{ role: "user" | "assistant"; content
       return { result: { recorded: true, verdict: g.verdict }, summary: `plan recorded: ${pa.title} (${g.verdict.replace("_", " ").toLowerCase()})`, terminal: true };
     }
     if (name === "web_search") {
-      if (!env.tavilyKey) return { result: { error: "web search is not configured" }, summary: "web search unavailable" };
-      const hits = await tavilySearch(String(raw.query ?? ""), { maxResults: 4 });
-      return { result: hits.map((h) => ({ title: h.title, url: h.url, snippet: h.content.slice(0, 300) })), summary: `searched "${raw.query}": ${hits.length} results` };
+      if (!env.tavilyKey && !env.meta.key) return { result: { error: "web search is not configured" }, summary: "web search unavailable" };
+      const r = await searchWeb(String(raw.query ?? ""), { maxResults: 4 });
+      return { result: r.hits.map((h) => ({ title: h.title, url: h.url, snippet: h.content.slice(0, 300) })), summary: `searched "${raw.query}" via ${r.engine === "grounding" ? "Muse search grounding" : "Tavily"}: ${r.hits.length} results` };
     }
     return { result: { error: `unknown tool ${name}` }, summary: `unknown tool ${name}` };
   };

@@ -54,6 +54,8 @@ model Site {
   sources        Json        @default("[]") // [{title,url,publisher,date}]
   curated        Boolean     @default(false) // seeded by hand rather than discovered
   discoveredBy   String?     // run id
+  conceptImage   String?  // Muse Image concept render as a data URL
+  conceptPrompt  String?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 

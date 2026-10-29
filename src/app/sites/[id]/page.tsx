@@ -9,6 +9,7 @@ import { AlternativesChart, CapexChart } from "@/components/charts";
 import { SiteMapLoader } from "@/components/site-map-loader";
 import { Kpi, Lead, Score, SectionTitle, StatusPill, VerdictPill } from "@/components/ui";
 import { SiteGlyph } from "@/components/site-glyph";
+import { ConceptRender } from "@/components/concept-render";
 import type { StoredLayers } from "@/lib/vision/sam";
 import { dateShort, money, moneyRound, num, pct, years } from "@/lib/format";
 import { mixLabel } from "@/lib/model/energy";
@@ -49,7 +50,7 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_300px] gap-4 items-stretch">
+      <div className="grid lg:grid-cols-[1fr_300px_300px] gap-4 items-stretch">
         {(() => { const v = latest?.verdict; const conds = (latest?.conditions as string[] | undefined) ?? []; const firstSentence = (latest?.rationale ?? "").split(/(?<=\.)\s/)[0]; return (
           <Lead tone={v === "GO" ? "accent" : v === "NO_GO" ? "violet" : "amber"} eyebrow={latest ? `Advisor's verdict · ${dateShort(latest.createdAt)} · ${latest.model}` : "Advisor's verdict"}
             title={v === "GO" ? "Go" : v === "CONDITIONAL" ? "Conditional go" : v === "NO_GO" ? "No go" : "Not assessed yet"}
@@ -57,6 +58,7 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
             stats={[{ l: "Composite", v: num(base.scores.composite) }, { l: "Payback", v: years(base.operations.paybackYears) }, { l: "Live in", v: `${num(base.build.monthsToLive)} mo` }]} />
         ); })()}
         <SiteGlyph siteId={id} racks={base.facility.racks} facilityMw={base.facility.facilityMw} live={site.status === "OPERATIONAL"} />
+        <ConceptRender siteId={id} initialImage={site.conceptImage} initialPrompt={site.conceptPrompt} />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">

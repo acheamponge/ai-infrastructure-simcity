@@ -115,6 +115,8 @@ export function PlannerChat() {
 function PlanCard({ p, onBuild }: { p: PlannerPlan; onBuild: () => void }) {
   const e = p.estimate; const v = p.verdict.replace("_", " ").toLowerCase();
   const [copied, setCopied] = useState(false);
+  const [render, setRender] = useState<{ busy: boolean; image?: string; err?: string }>({ busy: false });
+  const renderConcept = async () => { setRender({ busy: true }); try { const r = await fetch("/api/vision/render", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ place: p.place.name, country: p.place.country, climate: p.place.climate, spec: { itMw: p.itMw, gpu: p.gpu, densityKw: p.densityKw, crew: p.crew ?? 600, robots: 0 }, mix: p.energyMix ?? { grid: 1, gas: 0, solar: 0, wind: 0, nuclear: 0, geothermal: 0, hydro: 0 } }) }); const j = await r.json(); if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`); setRender({ busy: false, image: j.image }); } catch (e) { setRender({ busy: false, err: e instanceof Error ? e.message : String(e) }); } };
   const share = async () => { const enc = btoa(unescape(encodeURIComponent(JSON.stringify({ ...p.focus, autoBreakGround: true })))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); const url = `${location.origin}/?focus=${enc}`; try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { prompt("Copy this link", url); } };
   return (
     <div className="rounded-lg border border-line bg-paper/70 p-3 space-y-2">
@@ -124,12 +126,15 @@ function PlanCard({ p, onBuild }: { p: PlannerPlan; onBuild: () => void }) {
         <Stat l="Capex" v={`$${fmt(e.capexUsdB, 2)}B`} /><Stat l="To live" v={`${e.monthsToLive} mo`} /><Stat l="EBITDA / yr" v={`$${fmt(e.ebitdaUsdMyr)}M`} />
         <Stat l="Payback" v={e.paybackYears == null ? "–" : `${fmt(e.paybackYears, 1)} yrs`} /><Stat l="CO₂ / yr" v={`${fmt(e.co2KtYr)} kt`} /><Stat l="Composite" v={fmt(e.scores.composite)} />
       </div>
+      {render.image && <img src={render.image} alt="Concept render of the plan" className="rounded-md border border-line w-full" />}
+      {render.err && <div className="text-[11px] text-crit">{render.err}</div>}
       <ul className="text-[12px] text-slate-2 list-disc pl-4 space-y-0.5">{p.rationale.map((r, i) => <li key={i}>{r}</li>)}</ul>
       {p.risks.length > 0 && <div className="text-[11px] text-warn">Watch: {p.risks.join(" · ")}</div>}
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onBuild} className="px-3 py-1.5 rounded-md bg-build text-paper font-semibold text-[12px]">Build it in the simulation</button>
         {p.dossierUrl && <a href={p.dossierUrl} className="px-3 py-1.5 rounded-md border border-line text-[12px] text-slate-1">Open dossier</a>}
         <button type="button" onClick={share} className="px-3 py-1.5 rounded-md border border-line text-[12px] text-slate-2 hover:text-ink">{copied ? "Link copied" : "Share plan"}</button>
+        <button type="button" onClick={renderConcept} disabled={render.busy} className="px-3 py-1.5 rounded-md border border-line text-[12px] text-slate-2 hover:text-ink disabled:opacity-50">{render.busy ? "Rendering…" : render.image ? "Render again" : "Render concept"}</button>
       </div>
     </div>
   );
