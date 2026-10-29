@@ -18,6 +18,7 @@
     "vercel-build": "prisma migrate deploy && next build"
   },
   "dependencies": {
+    "@meta-sam/parser": "^0.1.0",
     "@prisma/client": "^6.16.0",
     "leaflet": "^1.9.4",
     "next": "^15.5.0",

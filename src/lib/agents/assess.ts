@@ -1,7 +1,7 @@
 import type { Prisma, Verdict } from "@prisma/client";
 import { prisma } from "../db";
 import { env } from "../env";
-import { structured } from "../llm/crusoe";
+import { structured } from "../llm/client";
 import { startRun } from "./runs";
 import { AdvisorOutput, type AdvisorOutputT, type BuildPlanT } from "./schemas";
 import { fixtureAdvisor } from "./fixtures";
@@ -48,7 +48,7 @@ export function draftPlan(spec: SiteSpec, mix: EnergyMix, e: EstimateResult, alt
 
 export async function runAssessment(scenarioId: string) {
   const scenario = await prisma.scenario.findUniqueOrThrow({ where: { id: scenarioId }, include: { site: { include: { profile: true } } } });
-  const run = await startRun("ASSESS", { scenarioId, site: scenario.site.name, scenario: scenario.name }, LIVE() ? env.modelAdvisor : "fixture");
+  const run = await startRun("ASSESS", { scenarioId, site: scenario.site.name, scenario: scenario.name }, LIVE() ? (env.llmProvider === "meta" ? env.meta.modelAdvisor : env.modelAdvisor) : "fixture");
   try {
     const profile = scenario.site.profile ?? (await prisma.regionProfile.findUniqueOrThrow({ where: { siteId: scenario.siteId } }));
     const r = profileToFactors(profile);
@@ -74,7 +74,7 @@ export async function runAssessment(scenarioId: string) {
         alternatives: alternatives.map((a) => ({ name: a.name, mix: a.energyMix, viable: a.viable, composite: a.estimate.scores.composite, economic: a.estimate.scores.economic, environment: a.estimate.scores.environment, community: a.estimate.scores.community, paybackYears: a.estimate.operations.paybackYears, irr: a.estimate.operations.irr, co2TonnesYr: a.estimate.environment.co2TonnesYr, flags: a.estimate.flags })),
         profile: { ...profile, sources: undefined },
       };
-      const x = await structured(env.modelAdvisor, AdvisorOutput, SYSTEM, `Write the advisory for this brief.\n\n${JSON.stringify(brief, null, 1)}`, { maxTokens: 6000 });
+      const x = await structured("advisor", AdvisorOutput, SYSTEM, `Write the advisory for this brief.\n\n${JSON.stringify(brief, null, 1)}`, { maxTokens: 6000 });
       usage.model = x.usage.model; usage.tokensIn = x.usage.tokensIn; usage.tokensOut = x.usage.tokensOut;
       out = x.data;
       out.plan.energyMix = normalizeMix(out.plan.energyMix);
@@ -88,7 +88,7 @@ export async function runAssessment(scenarioId: string) {
         rationale: out.rationale, conditions: out.conditions, risks: out.risks, personas: out.personas,
         plan: { ...out.plan, estimate: { composite: planEstimate.scores.composite, economic: planEstimate.scores.economic, environment: planEstimate.scores.environment, community: planEstimate.scores.community, monthsToLive: planEstimate.build.monthsToLive, capexUsd: planEstimate.build.capexUsd, paybackYears: planEstimate.operations.paybackYears, irr: planEstimate.operations.irr, co2TonnesYr: planEstimate.environment.co2TonnesYr, viable: isViable(planEstimate) } } as unknown as Prisma.InputJsonValue,
         alternatives: alternatives.map((a) => ({ name: a.name, energyMix: a.energyMix, viable: a.viable, composite: a.estimate.scores.composite, economic: a.estimate.scores.economic, environment: a.estimate.scores.environment, community: a.estimate.scores.community, paybackYears: a.estimate.operations.paybackYears, irr: a.estimate.operations.irr, co2TonnesYr: a.estimate.environment.co2TonnesYr })) as unknown as Prisma.InputJsonValue,
-        model: LIVE() ? usage.model || env.modelAdvisor : "deterministic gate (fixture narrative)", runId: run.id,
+        model: LIVE() ? usage.model || (env.llmProvider === "meta" ? env.meta.modelAdvisor : env.modelAdvisor) : "deterministic gate (fixture narrative)", runId: run.id,
       },
     });
     await run.succeed({ assessmentId: assessment.id, verdict, planViable: isViable(planEstimate) } as unknown as Prisma.InputJsonValue, usage);

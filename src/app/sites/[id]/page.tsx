@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { ensureBaseline, ensureProfile } from "@/lib/sites";
 import { EnergyMixer } from "@/components/energy-mixer";
+import { FootprintCheck } from "@/components/footprint-check";
 import { RunButton } from "@/components/run-button";
 import { AlternativesChart, CapexChart } from "@/components/charts";
 import { SiteMapLoader } from "@/components/site-map-loader";
@@ -105,6 +106,11 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
       <section>
         <SectionTitle>Energy what-if</SectionTitle>
         <EnergyMixer siteId={id} initialSpec={baseline.spec as unknown as SiteSpec} initialMix={baseline.energyMix as unknown as EnergyMix} baseline={base} geothermalAvailable={profile.geothermal} />
+      </section>
+
+      <section>
+        <SectionTitle>Footprint check <span className="pill ml-2">SAM 3.1</span></SectionTitle>
+        <div className="card p-4"><FootprintCheck siteId={site.id} capacityMw={site.capacityMw} /></div>
       </section>
 
       <section className="grid lg:grid-cols-[1fr_1fr] gap-5">

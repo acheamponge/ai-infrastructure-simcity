@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../db";
 import { env } from "../env";
-import { structured } from "../llm/crusoe";
+import { structured } from "../llm/client";
 import { research } from "./research";
 import { startRun } from "./runs";
 import { DiscoveryOutput, type DiscoveredSiteT } from "./schemas";
@@ -13,7 +13,7 @@ const LIVE = () => env.agentMode === "live";
 const EXTRACT = `You are a research analyst building a registry of AI and cloud data centers from web sources. Report facility power in megawatts at full build-out and say when a figure is IT load instead. Distinguish operational sites, sites under construction, sites with approved plans, and proposals that are only announced. Keep only entries with a real name and location. Use null for unknown numbers rather than guessing; coordinates may be the city's. Cite the bracketed source numbers that support each entry.`;
 
 export async function runDiscovery(query: string, limit = 12) {
-  const run = await startRun("DISCOVER", { query, limit }, LIVE() ? `${env.modelResearch} + tavily` : "fixture");
+  const run = await startRun("DISCOVER", { query, limit }, LIVE() ? `${env.llmProvider === "meta" ? env.meta.modelResearch : env.modelResearch} + tavily` : "fixture");
   try {
     let found: DiscoveredSiteT[];
     let sourceList: Array<{ title: string; url: string }> = [];
@@ -26,7 +26,7 @@ export async function runDiscovery(query: string, limit = 12) {
       const r = await research(`Find current and future AI or cloud data centers matching: "${query}". Cover both existing facilities and announced or planned ones, with operator, location, status, capacity in MW, timeline and power supply.`, { log: run.log, perQuery: 7 });
       usage.tokensIn += r.tokensIn; usage.tokensOut += r.tokensOut;
       sourceList = r.sources;
-      const x = await structured(env.modelResearch, DiscoveryOutput, EXTRACT, `Extract up to ${limit} data centers for the query "${query}" from these sources.\n\n${r.digest}`, { maxTokens: 8000 });
+      const x = await structured("research", DiscoveryOutput, EXTRACT, `Extract up to ${limit} data centers for the query "${query}" from these sources.\n\n${r.digest}`, { maxTokens: 8000 });
       usage.model = x.usage.model; usage.tokensIn += x.usage.tokensIn; usage.tokensOut += x.usage.tokensOut;
       found = x.data.sites;
       await run.log(`extracted ${found.length} candidate sites with ${x.usage.model}`);

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { Simulation, type SimFocus } from "@/components/simulation";
+import { PlannerChat } from "@/components/planner-chat";
 import { toSimCfg, toSimRegion } from "@/lib/sim-bridge";
 import type { EnergyMix, SiteSpec } from "@/lib/model/types";
 
@@ -26,5 +27,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ s
       }
     }
   }
-  return <Simulation key={`${sp.site ?? ""}:${sp.plan ?? ""}`} realSites={realSites} focus={focus} />;
+  return (
+    <>
+      <Simulation key={`${sp.site ?? ""}:${sp.plan ?? ""}`} realSites={realSites} focus={focus} />
+      <PlannerChat />
+    </>
+  );
 }

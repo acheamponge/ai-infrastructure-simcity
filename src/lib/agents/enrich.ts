@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../db";
 import { env } from "../env";
-import { structured } from "../llm/crusoe";
+import { structured } from "../llm/client";
 import { research } from "./research";
 import { startRun } from "./runs";
 import { EnrichOutput, type EnrichOutputT } from "./schemas";
@@ -14,7 +14,7 @@ const EXTRACT = `You are a siting analyst. From the sources, establish the local
 
 export async function runEnrich(siteId: string) {
   const site = await prisma.site.findUniqueOrThrow({ where: { id: siteId } });
-  const run = await startRun("ENRICH", { siteId, site: site.name }, LIVE() ? `${env.modelResearch} + tavily` : "fixture");
+  const run = await startRun("ENRICH", { siteId, site: site.name }, LIVE() ? `${env.llmProvider === "meta" ? env.meta.modelResearch : env.modelResearch} + tavily` : "fixture");
   try {
     const profile = await ensureProfile(site);
     let out: EnrichOutputT;
@@ -39,7 +39,7 @@ export async function runEnrich(siteId: string) {
       });
       usage.tokensIn += r.tokensIn; usage.tokensOut += r.tokensOut;
       sourceList = r.sources;
-      const x = await structured(env.modelResearch, EnrichOutput, EXTRACT, `Site: ${site.name} at ${where} (${site.lat.toFixed(2)}, ${site.lon.toFixed(2)}).\n\n${r.digest}`, { maxTokens: 4000 });
+      const x = await structured("research", EnrichOutput, EXTRACT, `Site: ${site.name} at ${where} (${site.lat.toFixed(2)}, ${site.lon.toFixed(2)}).\n\n${r.digest}`, { maxTokens: 4000 });
       usage.model = x.usage.model; usage.tokensIn += x.usage.tokensIn; usage.tokensOut += x.usage.tokensOut;
       out = x.data;
       await run.log(`${out.notes.length} findings from ${sourceList.length} sources`);
