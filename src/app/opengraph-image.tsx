@@ -20,7 +20,7 @@ export default function OpenGraphImage() {
           <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 20, letterSpacing: 4, color: "#93a1b6", textTransform: "uppercase" }}><div style={{ width: 10, height: 10, borderRadius: 5, background: "#3fd8c6", boxShadow: "0 0 14px #3fd8c6" }} />Live registry · playable world</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 16, fontSize: 64, fontWeight: 700, lineHeight: 1.05, marginTop: 22, letterSpacing: -1 }}><span>AI Infrastructure</span><span style={{ color: "#3fd8c6" }}>SimCity</span></div>
           <div style={{ fontSize: 26, color: "#b9c6d6", marginTop: 22, lineHeight: 1.35 }}>Plan a data center on a living globe, walk it in 3D, break it, and get a go / no-go from agents on Muse and Crusoe.</div>
-          <div style={{ display: "flex", gap: 10, marginTop: 34 }}>{["3D simulation", "Estimation engine", "Muse Spark · SAM 3.1", "Open source"].map((t) => <div key={t} style={{ fontSize: 17, padding: "7px 14px", borderRadius: 999, border: "1px solid rgba(63,216,198,.45)", color: "#bff2ea", background: "rgba(63,216,198,.1)" }}>{t}</div>)}</div>
+          <div style={{ display: "flex", gap: 10, marginTop: 34 }}>{["3D simulation", "Estimation engine", "Muse Spark · SAM 3.1", "Open source"].map((t) => <div key={t} style={{ display: "flex", whiteSpace: "nowrap", fontSize: 17, padding: "7px 16px", borderRadius: 999, border: "1px solid rgba(63,216,198,.45)", color: "#bff2ea", backgroundColor: "rgba(63,216,198,.1)" }}>{t}</div>)}</div>
         </div>
       </div>
     ),
