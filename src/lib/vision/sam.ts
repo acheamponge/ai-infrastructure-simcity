@@ -12,11 +12,11 @@ export const LAYERS: Record<LayerKey, { concept: string; label: string; color: s
   building: { concept: "building", label: "Buildings", color: "#3fd8c6" },
   water: { concept: "water", label: "Surface water", color: "#3a8dff" },
   solar: { concept: "solar panels", label: "Solar arrays", color: "#f0b443" },
-  open: { concept: "open land", label: "Open land", color: "#7bd68a" },
+  open: { concept: "field", label: "Open land", color: "#7bd68a" }, // SAM answers "field"; "open land" returns nothing
 };
 
-export interface SegObject { id: string; box: { x1: number; y1: number; x2: number; y2: number } | null; path: string; maskW: number; maskH: number; areaM2: number; confidence: number | null; nearestM: number | null }
-export interface Layer { key: LayerKey; concept: string; label: string; color: string; objects: SegObject[]; areaM2: number; count: number; nearestM: number | null; error?: string }
+export interface SegObject { id: string; box: { x1: number; y1: number; x2: number; y2: number } | null; path: string; maskW: number; maskH: number; areaM2: number; confidence: number | null; nearestM: number | null; offset: { x: number; y: number } }
+export interface Layer { key: LayerKey; concept: string; label: string; color: string; objects: SegObject[]; areaM2: number; count: number; nearestM: number | null; error?: string; debug?: unknown }
 export interface SiteMeasurement {
   image: string; width: number; height: number; spanM: number; metersPerPixel: number; model: string; tookMs: number; attribution: string; measuredAt: string;
   layers: Layer[];
@@ -59,58 +59,70 @@ type Rec = Record<string, unknown>;
 const num = (v: unknown) => (typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN);
 
 /** One SAM pass: every match of a noun phrase in the image, with areas in square metres and distance to the image centre. */
-export async function segment(imageDataUrl: string, concept: string, spanM: number, px: number): Promise<SegObject[]> {
+export async function segment(imageDataUrl: string, concept: string, spanM: number, px: number, debug?: { out: Record<string, unknown> }): Promise<SegObject[]> {
   if (!env.meta.key) throw new Error("MODEL_API_KEY_MUSE is not set; SAM runs on the Meta Model API");
   const r = await fetch(`${env.meta.baseUrl}/responses`, {
     method: "POST", headers: { "content-type": "application/json", accept: "text/event-stream", authorization: `Bearer ${env.meta.key}` },
     body: JSON.stringify({ model: env.meta.samModel, stream: true, metadata: { include_confidence: "true" }, input: [{ type: "message", role: "user", content: [{ type: "input_text", text: concept }, { type: "input_image", image_url: imageDataUrl }] }] }),
   });
   if (!r.ok || !r.body) throw new Error(`SAM ${r.status}: ${(await r.text()).slice(0, 300)}`);
-  const parsed = parseImageStream(sseEvents(r.body) as AsyncIterable<never>);
+  const events: Record<string, unknown>[] = [];
+  const tap = async function* () { for await (const e of sseEvents(r.body!)) { if (debug && events.length < 400) events.push(e); yield e; } };
+  const parsed = parseImageStream(tap() as AsyncIterable<never>);
   for await (const _ of parsed) { /* drain snapshots; the final view is what we read */ }
   const result = await parsed.finalResult;
   const records = (result as unknown as { records: Rec[] }).records ?? [];
+  if (debug) {
+    const res = result as unknown as Rec;
+    debug.out = { resultKeys: Object.keys(res), outcome: res.outcome, diagnostics: res.diagnostics, rawOutputHead: typeof res.rawOutput === "string" ? (res.rawOutput as string).slice(0, 600) : res.rawOutput, recordCount: records.length, recordKinds: [...new Set(records.map((x) => String(x.kind ?? x.type ?? "?")))], firstRecord: records[0] ? Object.fromEntries(Object.entries(records[0]).map(([k, v]) => [k, typeof v === "string" && v.length > 120 ? v.slice(0, 120) + "…" : v])) : null, eventTypes: [...new Set(events.map((e) => String(e.type)))], eventSample: events.slice(0, 3).map((e) => JSON.stringify(e).slice(0, 300)), eventCount: events.length };
+  }
   const masks = recordsOfKind(records as never, "mask" as never) as unknown as Rec[];
   const boxes = recordsOfKind(records as never, "box" as never) as unknown as Rec[];
   const boxById = new Map<string, Rec>();
-  for (const b of boxes) boxById.set(String(b.id ?? b.objectId ?? b.object ?? ""), b);
+  for (const b of boxes) boxById.set(String(b.objectId ?? b.id ?? b.object ?? ""), b);
+  if (debug) debug.out.firstMask = masks[0] ? Object.fromEntries(Object.entries(masks[0]).map(([k, v]) => [k, typeof v === "string" && v.length > 120 ? v.slice(0, 120) + "…" : v && typeof v === "object" ? Object.fromEntries(Object.entries(v as Rec).map(([kk, vv]) => [kk, typeof vv === "string" && vv.length > 80 ? vv.slice(0, 80) + "…" : vv])) : v])) : null;
+  // the parser's boxes are exclusive on the right and bottom edges, and each mask raster is the crop inside its box
+  const mpp = spanM / px, cx = px / 2, cy = px / 2;
   const objects: SegObject[] = [];
   for (const m of masks) {
-    const id = String(m.id ?? m.objectId ?? m.object ?? objects.length);
+    const id = String(m.objectId ?? m.id ?? m.object ?? objects.length);
     const mask = (m.mask ?? m) as never;
     let raster: Uint8Array; try { raster = decodeMaskToRaster(mask); } catch { continue; }
-    const mr = m.mask as Rec | undefined;
-    const mw = num(m.width ?? mr?.width ?? mr?.w), mh = num(m.height ?? mr?.height ?? mr?.h);
-    const W = Number.isFinite(mw) && mw > 0 ? mw : px, H = Number.isFinite(mh) && mh > 0 ? mh : Math.round(raster.length / W);
-    // area, and the nearest set pixel to the centre (where the site's coordinates sit)
-    let on = 0, best = Infinity; const cx = W / 2, cy = H / 2;
-    for (let y = 0; y < H; y++) { const row = y * W; for (let x = 0; x < W; x++) if (raster[row + x]) { on++; const d = (x - cx) * (x - cx) + (y - cy) * (y - cy); if (d < best) best = d; } }
-    const areaM2 = (on / (W * H)) * spanM * spanM;
-    const nearestM = on ? Math.sqrt(best) * (spanM / W) : null;
-    const b = boxById.get(id); const bx = b?.box as Rec | undefined;
-    const box = bx && Number.isFinite(num(bx.x1)) ? { x1: num(bx.x1), y1: num(bx.y1), x2: num(bx.x2), y2: num(bx.y2) } : null;
-    const conf = num(b?.c ?? b?.confidence ?? m.c ?? m.confidence);
+    const b = boxById.get(id);
+    const left = num(b?.left), top = num(b?.top), right = num(b?.right), bottom = num(b?.bottom);
+    const hasBox = [left, top, right, bottom].every(Number.isFinite);
+    const mr = (m.mask ?? {}) as Rec;
+    let W = num(mr.width ?? m.width), H = num(mr.height ?? m.height);
+    if (!(W > 0 && H > 0)) { if (hasBox && (right - left) * (bottom - top) === raster.length) { W = right - left; H = bottom - top; } else { W = px; H = Math.round(raster.length / W); } }
+    const ox = hasBox ? left : 0, oy = hasBox ? top : 0;
+    let on = 0, best = Infinity;
+    for (let y = 0; y < H; y++) { const row = y * W; for (let x = 0; x < W; x++) if (raster[row + x]) { on++; const dx = ox + x - cx, dy = oy + y - cy; const d = dx * dx + dy * dy; if (d < best) best = d; } }
+    const areaM2 = on * mpp * mpp;
+    const nearestM = on ? Math.sqrt(best) * mpp : null;
+    const box = hasBox ? { x1: left, y1: top, x2: right, y2: bottom } : null;
+    const conf = num(b?.confidence ?? m.confidence ?? b?.c ?? m.c);
     let path = ""; try { path = decodeMaskToSVGPath(mask); } catch { path = ""; }
-    objects.push({ id, box, path, maskW: W, maskH: H, areaM2, confidence: Number.isFinite(conf) ? conf : null, nearestM });
+    objects.push({ id, box, path, maskW: W, maskH: H, areaM2, confidence: Number.isFinite(conf) ? conf : null, nearestM, offset: { x: ox, y: oy } });
   }
   return objects.sort((a, b) => b.areaM2 - a.areaM2);
 }
 
 /** Measure a site: four concept passes over one satellite view, summarized as the inputs the estimate engine takes. */
-export async function measureSite(lat: number, lon: number, opts: { spanM?: number; px?: number } = {}): Promise<SiteMeasurement> {
+export async function measureSite(lat: number, lon: number, opts: { spanM?: number; px?: number; debug?: boolean; concepts?: string[] } = {}): Promise<SiteMeasurement> {
   const spanM = opts.spanM ?? 1400, px = opts.px ?? 768;
   const t0 = Date.now();
   const img = await satelliteImage(lat, lon, spanM, px);
-  const layers = await Promise.all((Object.keys(LAYERS) as LayerKey[]).map(async (key): Promise<Layer> => {
-    const L = LAYERS[key];
+  const plan: Array<{ key: LayerKey; concept: string; label: string; color: string }> = opts.concepts?.length ? opts.concepts.map((c, i) => ({ key: (Object.keys(LAYERS) as LayerKey[])[i % 4], concept: c, label: c, color: "#fff" })) : (Object.keys(LAYERS) as LayerKey[]).map((key) => ({ key, ...LAYERS[key] }));
+  const layers = await Promise.all(plan.map(async ({ key, ...L }): Promise<Layer> => {
     try {
-      const objects = await segment(img.dataUrl, L.concept, spanM, px);
+      const dbg = opts.debug ? { out: {} as Record<string, unknown> } : undefined;
+      const objects = await segment(img.dataUrl, L.concept, spanM, px, dbg);
       const areaM2 = objects.reduce((a, o) => a + o.areaM2, 0);
       const nearest = objects.map((o) => o.nearestM).filter((n): n is number => n != null);
-      return { key, concept: L.concept, label: L.label, color: L.color, objects, areaM2, count: objects.length, nearestM: nearest.length ? Math.min(...nearest) : null };
+      return { key, concept: L.concept, label: L.label, color: L.color, objects, areaM2, count: objects.length, nearestM: nearest.length ? Math.min(...nearest) : null, debug: dbg?.out };
     } catch (e) { return { key, concept: L.concept, label: L.label, color: L.color, objects: [], areaM2: 0, count: 0, nearestM: null, error: e instanceof Error ? e.message : String(e) }; }
   }));
-  const by = (k: LayerKey) => layers.find((l) => l.key === k)!;
+  const by = (k: LayerKey) => layers.find((l) => l.key === k && l.concept === LAYERS[k].concept) ?? { areaM2: 0, nearestM: null };
   const ha = (m2: number) => m2 / 1e4;
   return {
     image: img.dataUrl, width: img.width, height: img.height, spanM, metersPerPixel: spanM / px, model: env.meta.samModel, tookMs: Date.now() - t0, attribution: ATTRIBUTION, measuredAt: new Date().toISOString(),

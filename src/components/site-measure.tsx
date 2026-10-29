@@ -31,7 +31,6 @@ export function SiteMeasure({ siteId, capacityMw, measured }: { siteId: string; 
   }
 
   const m = out?.measurement; const s = m ? { ...m.summary, spanM: m.spanM } : measured;
-  const vb = m?.layers.find((l) => l.objects.length)?.objects[0];
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-end gap-3 text-[12px]">
@@ -63,9 +62,9 @@ export function SiteMeasure({ siteId, capacityMw, measured }: { siteId: string; 
         <div className="grid lg:grid-cols-[minmax(0,1fr)_260px] gap-4">
           <div className="relative rounded-lg overflow-hidden border border-line bg-black" style={{ aspectRatio: `${m.width} / ${m.height}` }}>
             <img src={m.image} alt="Satellite view of the site" className="absolute inset-0 w-full h-full object-cover" />
-            <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${vb?.maskW ?? m.width} ${vb?.maskH ?? m.height}`} preserveAspectRatio="none">
-              {m.layers.filter((l) => show[l.key]).map((l) => l.objects.map((o) => o.path && <path key={`${l.key}-${o.id}`} d={o.path} fill={l.color + "66"} stroke={l.color} strokeWidth={1.2} vectorEffect="non-scaling-stroke"><title>{l.label} · {fmt(o.areaM2 / 1e4, 1)} ha</title></path>))}
-              <circle cx={(vb?.maskW ?? m.width) / 2} cy={(vb?.maskH ?? m.height) / 2} r={6} fill="none" stroke="#fff" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+            <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${m.width} ${m.height}`} preserveAspectRatio="none">
+              {m.layers.filter((l) => show[l.key]).map((l) => l.objects.map((o) => o.path && <g key={`${l.key}-${o.id}`} transform={`translate(${o.offset.x} ${o.offset.y})`}><path d={o.path} fill={l.color + "66"} stroke={l.color} strokeWidth={1.2} vectorEffect="non-scaling-stroke"><title>{l.label} · {fmt(o.areaM2 / 1e4, 1)} ha</title></path></g>))}
+              <circle cx={m.width / 2} cy={m.height / 2} r={6} fill="none" stroke="#fff" strokeWidth={2} vectorEffect="non-scaling-stroke" />
             </svg>
             <div className="absolute bottom-1 right-2 text-[9px] text-white/70">{m.attribution}</div>
           </div>

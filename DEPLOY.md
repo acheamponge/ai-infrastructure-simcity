@@ -1,7 +1,7 @@
 # Deploying AI Infrastructure SimCity to Vercel
 
 The app is a Next.js 15 project with Prisma on Postgres and server-side agents that call
-Crusoe Cloud inference and Tavily. It needs a host that runs Node, so GitHub Pages is out;
+the Meta Model API (Muse and SAM 3.1), Crusoe Cloud inference as the fallback, and Tavily. It needs a host that runs Node, so GitHub Pages is out;
 Vercel plus a hosted Postgres is the simplest setup. Everything below runs on free tiers.
 
 ## 1. Hosted Postgres
@@ -30,6 +30,7 @@ variable the app reads.
    | Variable | Value |
    | --- | --- |
    | `DATABASE_URL` | the Neon connection string |
+   | `MODEL_API_KEY_MUSE` | your Meta Model API key (Muse Spark, Muse Wonder, SAM 3.1); when set, Muse is the primary provider |
    | `CRUSOE_API_KEY` | your Crusoe inference key |
    | `CRUSOE_BASE_URL` | `https://api.inference.crusoecloud.com/v1` |
    | `CRUSOE_MODEL_RESEARCH` | `kimi` |
