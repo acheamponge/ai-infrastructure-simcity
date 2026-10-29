@@ -10,6 +10,18 @@ export const maxDuration = 180;
 
 /** POST { siteId, spanM? } — measures the site with SAM 3.1, stores the result on its profile, re-estimates every scenario,
  *  and returns the measurement with the baseline composite before and after so the change is visible. */
+/** GET ?site=<id>&image=1 streams the stored satellite view behind the SAM overlay. */
+export async function GET(req: Request) {
+  const u = new URL(req.url); const id = u.searchParams.get("site");
+  if (!id) return NextResponse.json({ error: "site is required" }, { status: 400 });
+  const p = await prisma.regionProfile.findUnique({ where: { siteId: id }, select: { measuredLayers: true } });
+  const img = (p?.measuredLayers as { image?: string } | null)?.image;
+  if (!img) return NextResponse.json({ error: "no measurement stored" }, { status: 404 });
+  const m = /^data:(image\/[a-z]+);base64,(.+)$/i.exec(img);
+  if (!m) return NextResponse.redirect(img);
+  return new Response(Buffer.from(m[2], "base64"), { headers: { "content-type": m[1], "cache-control": "public, max-age=31536000, immutable" } });
+}
+
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as { siteId?: string; spanM?: number; debug?: boolean; clear?: boolean; concepts?: string[] };
   if (!body.siteId) return NextResponse.json({ error: "siteId is required" }, { status: 400 });

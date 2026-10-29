@@ -74,7 +74,7 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
 
       <section>
         <SectionTitle>What the satellite shows <span className="pill ml-2">SAM 3.1</span></SectionTitle>
-        <div className="card p-4"><SiteMeasure siteId={site.id} capacityMw={site.capacityMw} stored={(profile.measuredLayers as unknown as StoredLayers | null) ?? null} measured={profile.measuredBy ? { builtHa: profile.measuredBuiltHa ?? 0, openHa: profile.measuredOpenHa ?? 0, waterHa: profile.measuredWaterHa ?? 0, waterNearM: profile.measuredWaterNearM ?? null, solarHa: profile.measuredSolarHa ?? 0, spanM: profile.measuredSpanM ?? 1400, by: profile.measuredBy, at: profile.measuredAt?.toISOString() ?? null } : null} /></div>
+        <div className="card p-4"><SiteMeasure siteId={site.id} capacityMw={site.capacityMw} stored={profile.measuredLayers ? { ...(profile.measuredLayers as unknown as StoredLayers), image: `/api/vision/measure?site=${id}&image=1&v=${profile.measuredAt?.getTime() ?? 0}` } : null} measured={profile.measuredBy ? { builtHa: profile.measuredBuiltHa ?? 0, openHa: profile.measuredOpenHa ?? 0, waterHa: profile.measuredWaterHa ?? 0, waterNearM: profile.measuredWaterNearM ?? null, solarHa: profile.measuredSolarHa ?? 0, spanM: profile.measuredSpanM ?? 1400, by: profile.measuredBy, at: profile.measuredAt?.toISOString() ?? null } : null} /></div>
       </section>
 
       {latest && (
