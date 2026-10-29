@@ -43,5 +43,10 @@
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/acheamponge/ai-infrastructure-simcity.git"
   }
 }
