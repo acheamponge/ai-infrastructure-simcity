@@ -58,7 +58,7 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
             stats={[{ l: "Composite", v: num(base.scores.composite) }, { l: "Payback", v: years(base.operations.paybackYears) }, { l: "Live in", v: `${num(base.build.monthsToLive)} mo` }]} />
         ); })()}
         <SiteGlyph siteId={id} racks={base.facility.racks} facilityMw={base.facility.facilityMw} live={site.status === "OPERATIONAL"} />
-        <ConceptRender siteId={id} initialImage={site.conceptImage} initialPrompt={site.conceptPrompt} />
+        <ConceptRender siteId={id} initialImage={site.conceptImage ? `/api/vision/render?site=${id}&v=${site.updatedAt.getTime()}` : null} initialPrompt={site.conceptPrompt} />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">

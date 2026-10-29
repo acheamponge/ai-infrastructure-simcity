@@ -12,13 +12,13 @@ export interface RenderInput {
 }
 
 export function renderPrompt(i: RenderInput): string {
-  const cols = Math.min(40, Math.ceil(Math.sqrt(i.racks * 2.2))), rows = Math.max(1, Math.ceil(i.racks / cols));
+  const halls = Math.min(12, Math.max(1, Math.round(i.facilityMw / 25)));
   const towers = Math.min(8, Math.max(2, Math.ceil(i.facilityMw / 14)));
   const land = i.measured ? [i.measured.waterHa > 2 && i.measured.waterNearM != null && i.measured.waterNearM < 1500 ? "a lake or fjord shoreline beside the site" : null, i.measured.openHa > 20 ? "wide open fields around it" : null, i.measured.solarHa > 1 ? "existing solar arrays nearby" : null, i.measured.builtHa > 5 ? "existing warehouse-scale buildings next door" : null].filter(Boolean).join(", ") : "";
   const climate = i.climate === "cold" ? "northern landscape, cool light, conifers" : i.climate === "hot" ? "dry sunlit landscape, hard shadows" : "temperate countryside, soft light";
   const supply = [i.mix.solar > 0.15 ? "fields of solar panels" : null, i.mix.wind > 0.15 ? "wind turbines on the horizon" : null, i.mix.gas > 0.2 ? "a gas turbine plant with exhaust stacks" : null, i.mix.nuclear > 0.2 ? "a compact modular reactor building" : null, i.mix.hydro > 0.2 ? "a hydroelectric dam in the distance" : null].filter(Boolean).join(", ");
   const phase = i.status === "OPERATIONAL" ? "fully built and operating" : i.status === "CONSTRUCTION" ? "partly built, with cranes and construction yards on one side" : "newly completed";
-  return `Photorealistic aerial photograph at golden hour of a ${Math.round(i.facilityMw)} MW AI data center campus, ${phase}, near ${i.place}, ${i.country}. ${rows} long windowless concrete halls with white roofs lined with rooftop chillers, ${towers} cooling towers in a row, a fenced electrical substation with transformers, a diesel generator yard with fuel tanks, service roads and a parking lot. ${supply ? supply + ". " : ""}${land ? land + ". " : ""}${climate}. Power supply: ${mixLabel(i.mix)}. Documentary architectural photography, 24 mm lens, high detail, no text, no watermarks, no people.`;
+  return `Photorealistic aerial photograph at golden hour of a ${Math.round(i.facilityMw)} MW AI data center campus, ${phase}, near ${i.place}, ${i.country}. ${halls === 1 ? "one" : halls} long windowless concrete hall${halls === 1 ? "" : "s"} with white roofs lined with rooftop chillers, ${towers} cooling towers in a row, a fenced electrical substation with transformers, a diesel generator yard with fuel tanks, service roads and a parking lot. ${supply ? supply + ". " : ""}${land ? land + ". " : ""}${climate}. Power supply: ${mixLabel(i.mix)}. Documentary architectural photography, 24 mm lens, high detail, no text, no watermarks, no people.`;
 }
 
 export interface ConceptRender { image: string; prompt: string; model: string; tookMs: number; size: string }
