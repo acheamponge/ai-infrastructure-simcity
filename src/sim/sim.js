@@ -310,12 +310,17 @@ function readCfg(){
   $('racksOut').value=S.cfg.racks;$('crewOut').value=S.cfg.crew;
   $('energyNote').textContent=ENERGY[S.cfg.energy].note;
 }
+// the status strip: registry facts until you build something, then your portfolio
+function setStat(id,label,value,neg){const b=$(id);b.textContent=value;b.classList.toggle('neg',!!neg);const l=b.previousElementSibling;if(l&&l.textContent!==label)l.textContent=label}
 function render(){
   $('s-date').textContent=monthName(S.month);
-  $('s-cap').textContent=fmtM(S.capital);
-  const n=$('s-net');n.textContent=(S.lastNet>=0?'+':'')+fmtM(S.lastNet||0);n.classList.toggle('neg',(S.lastNet||0)<0);
-  $('s-comp').textContent=S.facilities.filter(f=>f.status==='live').reduce((a,f)=>a+f.plan.perf,0).toFixed(1)+' PF';
-  $('s-sites').textContent=S.facilities.filter(f=>f.status==='building').length+' / '+S.facilities.filter(f=>f.status==='live').length;
+  if(!S.facilities.length){
+    const real=S.regions.filter(r=>r.real),mw=real.reduce((a,r)=>a+(r.capacityMw||0),0),v={GO:0,CONDITIONAL:0,NO_GO:0};for(const r of real)if(v[r.verdict]!=null)v[r.verdict]++;
+    setStat('s-cap','Sites tracked',real.length+' sites');setStat('s-net','Capacity on record',fmtN(mw)+' MW');setStat('s-comp','Verdicts go · cond · no-go',v.GO+' · '+v.CONDITIONAL+' · '+v.NO_GO);setStat('s-sites','Operational today',real.filter(r=>r.status==='OPERATIONAL').length+' live');
+  } else {
+    setStat('s-cap','Capital deployed',fmtM(S.capital));setStat('s-net','Cash flow / mo',(S.lastNet>=0?'+':'')+fmtM(S.lastNet||0),(S.lastNet||0)<0);
+    setStat('s-comp','Compute live',S.facilities.filter(f=>f.status==='live').reduce((a,f)=>a+f.plan.perf,0).toFixed(1)+' PF');setStat('s-sites','Sites building / live',S.facilities.filter(f=>f.status==='building').length+' / '+S.facilities.filter(f=>f.status==='live').length);
+  }
   $('play').textContent=S.running?'❚❚ Pause':'▶ Play';
   renderPlan();renderSites();renderPortfolio();drawMap();
 }

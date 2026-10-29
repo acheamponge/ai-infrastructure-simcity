@@ -36,7 +36,7 @@ export function toSimRegion(site: Site, p: RegionProfile, baseline: { spec: unkn
   const spec = baseline.spec as SiteSpec, mix = baseline.energyMix as EnergyMix;
   const { phases, cfg } = toSimCfg(spec, mix, p.flareGas);
   return {
-    id: `site:${site.id}`, siteId: site.id, real: true, name: site.name, operator: site.operator, country: site.country, lat: site.lat, lon: site.lon, status: site.status, verdict: baseline.assessments?.[0]?.verdict ?? null, phases, cfg,
+    id: `site:${site.id}`, siteId: site.id, real: true, name: site.name, operator: site.operator, country: site.country, lat: site.lat, lon: site.lon, status: site.status, verdict: baseline.assessments?.[0]?.verdict ?? null, capacityMw: site.capacityMw, phases, cfg,
     power: p.powerPriceKwh, carbon: p.gridCarbonG, labor: p.laborPool, wage: p.wageUsdH, land: p.landIndex, sent: p.sentiment,
     climate: p.climate, water: p.waterStress === "medium" ? "med" : p.waterStress, gridLead: p.gridLeadMonths, gridRel: p.gridReliability, headroom: p.gridHeadroomMw,
     solar: p.solar, wind: p.wind, geo: p.geothermal, flare: p.flareGas,
