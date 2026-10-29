@@ -43,7 +43,7 @@ export const env = {
     key: get("MODEL_API_KEY_MUSE") ?? "",
     baseUrl: (get("META_BASE_URL") ?? "https://api.meta.ai/v1").replace(/\/+$/, ""),
     modelResearch: get("META_MODEL_RESEARCH") ?? "muse-spark-1.3",
-    modelAdvisor: get("META_MODEL_ADVISOR") ?? "muse-spark-1.3",
+    modelAdvisor: get("META_MODEL_ADVISOR") ?? "muse-wonder-1.0", // the verdict and plan; Spark gathers, Wonder decides
     modelPlanner: get("META_MODEL_PLANNER") ?? "muse-spark-1.3",
     samModel: "sam-3.1",
   },

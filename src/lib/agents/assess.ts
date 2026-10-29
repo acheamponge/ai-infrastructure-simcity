@@ -72,9 +72,12 @@ export async function runAssessment(scenarioId: string) {
         verdict,
         draftPlan: draft,
         alternatives: alternatives.map((a) => ({ name: a.name, mix: a.energyMix, viable: a.viable, composite: a.estimate.scores.composite, economic: a.estimate.scores.economic, environment: a.estimate.scores.environment, community: a.estimate.scores.community, paybackYears: a.estimate.operations.paybackYears, irr: a.estimate.operations.irr, co2TonnesYr: a.estimate.environment.co2TonnesYr, flags: a.estimate.flags })),
-        profile: { ...profile, sources: undefined },
+        // numbers only: never the source list, the stored satellite imagery or any other large blob
+        profile: Object.fromEntries(Object.entries(profile).filter(([k, v]) => k !== "sources" && k !== "measuredLayers" && !(typeof v === "string" && v.length > 2000))),
       };
+      await run.log(`verdict fixed by the engine; asking ${env.llmProvider === "meta" ? env.meta.modelAdvisor : env.modelAdvisor} for the rationale, conditions and plan (research ran on ${env.llmProvider === "meta" ? env.meta.modelResearch : env.modelResearch})`);
       const x = await structured("advisor", AdvisorOutput, SYSTEM, `Write the advisory for this brief.\n\n${JSON.stringify(brief, null, 1)}`, { maxTokens: 6000 });
+      await run.log(`advisory written by ${x.usage.model} in ${x.usage.tokensOut} output tokens, ${x.usage.attempts} attempt(s); brief ${JSON.stringify(brief).length} chars; usage ${JSON.stringify(x.usage.raw)}`);
       usage.model = x.usage.model; usage.tokensIn = x.usage.tokensIn; usage.tokensOut = x.usage.tokensOut;
       out = x.data;
       out.plan.energyMix = normalizeMix(out.plan.energyMix);

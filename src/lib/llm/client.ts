@@ -12,8 +12,8 @@ export type Role = "research" | "advisor" | "planner";
 export interface ToolCall { id: string; type: "function"; function: { name: string; arguments: string } }
 export interface ToolDef { type: "function"; function: { name: string; description: string; parameters: Record<string, unknown> } }
 export interface ChatMessage { role: "system" | "user" | "assistant" | "tool"; content: string | null; tool_calls?: ToolCall[]; tool_call_id?: string }
-export interface ChatResult { text: string; model: string; provider: LlmProvider; tokensIn: number; tokensOut: number; finish?: string; toolCalls: ToolCall[] }
-export interface ChatOptions { json?: Record<string, unknown> | true; tools?: ToolDef[]; maxTokens?: number; temperature?: number; reasoning?: "minimal" | "low" | "medium" | "high" }
+export interface ChatResult { text: string; model: string; provider: LlmProvider; tokensIn: number; tokensOut: number; finish?: string; toolCalls: ToolCall[]; usageRaw?: unknown }
+export interface ChatOptions { json?: Record<string, unknown> | true; tools?: ToolDef[]; maxTokens?: number; temperature?: number; reasoning?: "minimal" | "low" | "medium" | "high"; timeoutMs?: number }
 
 interface Provider { id: LlmProvider; baseUrl: string; key: string; models: Record<Role, string>; listModels: boolean; jsonMode: "schema" | "object"; thinkingFlags: boolean; fallbackModels: string[] }
 
@@ -69,7 +69,10 @@ async function send(p: Provider, model: string, messages: ChatMessage[], opts: C
   const post = async (withFlag: boolean) => {
     const b = { ...body };
     if (withFlag) { b.chat_template_kwargs = { enable_thinking: false }; b.thinking = { type: "disabled" }; }
-    return fetch(`${p.baseUrl}/chat/completions`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${p.key}` }, body: JSON.stringify(b) });
+    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), opts.timeoutMs ?? 240000);
+    try { return await fetch(`${p.baseUrl}/chat/completions`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${p.key}` }, body: JSON.stringify(b), signal: ctl.signal }); }
+    catch (e) { throw new ProviderError(p.id, 0, `${p.id} chat ${ctl.signal.aborted ? "timed out after " + Math.round((opts.timeoutMs ?? 240000) / 1000) + " s" : "unreachable: " + (e instanceof Error ? e.message : String(e))}`); }
+    finally { clearTimeout(timer); }
   };
   let r = await post(p.thinkingFlags && !crusoeThinkingFlagRejected);
   if (p.thinkingFlags && r.status === 400 && !crusoeThinkingFlagRejected) { crusoeThinkingFlagRejected = true; r = await post(false); }
@@ -79,10 +82,10 @@ async function send(p: Provider, model: string, messages: ChatMessage[], opts: C
   let text = (m.content ?? "").trim();
   if (!text && m.reasoning_content && !m.tool_calls?.length) text = m.reasoning_content.trim();
   text = text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-  return { text, model, provider: p.id, tokensIn: j.usage?.prompt_tokens ?? 0, tokensOut: j.usage?.completion_tokens ?? 0, finish: j.choices?.[0]?.finish_reason, toolCalls: m.tool_calls ?? [] };
+  return { text, model, provider: p.id, tokensIn: j.usage?.prompt_tokens ?? 0, tokensOut: j.usage?.completion_tokens ?? 0, finish: j.choices?.[0]?.finish_reason, toolCalls: m.tool_calls ?? [], usageRaw: j.usage };
 }
 
-const retriable = (e: unknown) => !(e instanceof ProviderError) || e.status === 401 || e.status === 403 || e.status === 404 || e.status === 429 || e.status >= 500;
+const retriable = (e: unknown) => !(e instanceof ProviderError) || e.status === 0 || e.status === 401 || e.status === 403 || e.status === 404 || e.status === 429 || e.status >= 500;
 
 /** Chat with the primary provider for the role, falling back to the other provider when it cannot answer. */
 export async function chat(role: Role, messages: ChatMessage[], opts: ChatOptions = {}): Promise<ChatResult> {
@@ -94,9 +97,9 @@ export async function chat(role: Role, messages: ChatMessage[], opts: ChatOption
       const model = await resolveModel(p, p.models[role]);
       try { return await send(p, model, messages, opts); }
       catch (e) {
-        // the model id may be unavailable to this key (preview models): try the provider's own fallback before leaving it
-        if (e instanceof ProviderError && (e.status === 400 || e.status === 404) && p.fallbackModels[0] && !p.listModels && model !== p.fallbackModels[0]) {
-          console.warn(`[llm] ${p.id} rejected ${model} (${e.status}); retrying on ${p.fallbackModels[0]}`);
+        // a preview model may be unavailable to this key, rate limited or slow: try the provider's own fallback before leaving it
+        if (e instanceof ProviderError && (e.status === 0 || e.status === 400 || e.status === 404 || e.status === 429 || e.status >= 500) && p.fallbackModels[0] && !p.listModels && model !== p.fallbackModels[0]) {
+          console.warn(`[llm] ${p.id} ${model} failed (${e.message.slice(0, 80)}); retrying on ${p.fallbackModels[0]}`);
           return await send(p, p.fallbackModels[0], messages, opts);
         }
         throw e;
@@ -121,17 +124,17 @@ function extractJson(text: string): unknown {
 }
 
 /** Ask for JSON matching a zod schema; retry once with the validation error if the first answer does not parse. */
-export async function structured<T extends z.ZodType>(role: Role, schema: T, system: string, user: string, opts: { maxTokens?: number } = {}): Promise<{ data: z.infer<T>; usage: { model: string; provider: LlmProvider; tokensIn: number; tokensOut: number } }> {
+export async function structured<T extends z.ZodType>(role: Role, schema: T, system: string, user: string, opts: { maxTokens?: number } = {}): Promise<{ data: z.infer<T>; usage: { model: string; provider: LlmProvider; tokensIn: number; tokensOut: number; attempts: number; raw?: unknown } }> {
   const jsonSchema = z.toJSONSchema(schema) as Record<string, unknown>;
   const sys = `${system}\n\nRespond with a single JSON object and nothing else. It must validate against this JSON Schema:\n${JSON.stringify(jsonSchema)}`;
   const messages: ChatMessage[] = [{ role: "system", content: sys }, { role: "user", content: user }];
-  let tokensIn = 0, tokensOut = 0, model = "", provider: LlmProvider = env.llmProvider, last = "";
+  let tokensIn = 0, tokensOut = 0, model = "", provider: LlmProvider = env.llmProvider, last = "", raw: unknown = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     const r = await chat(role, messages, { json: jsonSchema, maxTokens: opts.maxTokens ?? 6000 });
-    tokensIn += r.tokensIn; tokensOut += r.tokensOut; model = r.model; provider = r.provider; last = `${r.finish ?? "?"}: ${r.text.slice(0, 240)}`;
+    tokensIn += r.tokensIn; tokensOut += r.tokensOut; model = r.model; provider = r.provider; last = `${r.finish ?? "?"}: ${r.text.slice(0, 240)}`; raw = r.usageRaw;
     try {
       const parsed = schema.safeParse(extractJson(r.text));
-      if (parsed.success) return { data: parsed.data, usage: { model: `${provider}/${model}`, provider, tokensIn, tokensOut } };
+      if (parsed.success) return { data: parsed.data, usage: { model: `${provider}/${model}`, provider, tokensIn, tokensOut, attempts: attempt + 1, raw } };
       messages.push({ role: "assistant", content: r.text }, { role: "user", content: `That did not validate: ${JSON.stringify(parsed.error.issues.slice(0, 5))}. Return the corrected JSON object only.` });
     } catch (e) {
       messages.push({ role: "assistant", content: r.text || "(empty)" }, { role: "user", content: `That was not valid JSON (${e instanceof Error ? e.message : String(e)}). Return the JSON object only, no prose.` });
