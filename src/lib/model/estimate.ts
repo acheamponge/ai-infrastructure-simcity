@@ -50,6 +50,13 @@ export function estimate(spec: SiteSpec, r: RegionFactors, mixIn: Partial<Energy
   const petaflops = (gpus * G.perf) / 1000;
   const sourceLand = (Object.keys(mix) as EnergySource[]).reduce((a, k) => a + mix[k] * SOURCES[k].landHaPerMw, 0);
   const landHa = facilityMw * 0.12 + facilityMw * sourceLand;
+  // measured inputs from satellite segmentation replace the land and water priors when a site has been measured
+  const M = r.measured ?? null;
+  let landIndexEff = r.landIndex;
+  if (M) {
+    assumptions.push(`Site measured by ${M.by} over a ${(M.spanM / 1000).toFixed(1)} km view: ${M.openHa.toFixed(0)} ha open land, ${M.builtHa.toFixed(0)} ha built, ${M.waterHa.toFixed(0)} ha water${M.waterNearM != null ? ` ${Math.round(M.waterNearM)} m away` : ""}, ${M.solarHa.toFixed(0)} ha solar`);
+    if (landHa > M.openHa) { flags.push(`Measured open land is ${M.openHa.toFixed(0)} ha; the facility and its supply need ${landHa.toFixed(0)} ha, so land must be assembled beyond the site (${M.by}).`); landIndexEff = r.landIndex * (1 + Math.min(1.5, (landHa - M.openHa) / Math.max(1, landHa))); }
+  }
 
   // ---- energy blend
   const blendedPrice = (Object.keys(mix) as EnergySource[]).reduce((a, k) => a + mix[k] * SOURCES[k].opexKwh(r), 0);
@@ -90,7 +97,7 @@ export function estimate(spec: SiteSpec, r: RegionFactors, mixIn: Partial<Energy
   if (laborShortfall > 0) flags.push(`Local trades cover ${people.toLocaleString()} of ${peopleWanted.toLocaleString()} requested; the rest must be imported or automated.`);
 
   const capexBreakdown: Record<string, number> = {
-    land: facilityMw * 0.25e6 * r.landIndex,
+    land: facilityMw * 0.25e6 * landIndexEff,
     civil: facilityMw * 1.2e6,
     "power supply": facilityMw * energyCapexPerMw,
     shell: facilityMw * 3.5e6,
@@ -99,6 +106,11 @@ export function estimate(spec: SiteSpec, r: RegionFactors, mixIn: Partial<Energy
     "automation fleet": spec.crew * robots * 150000,
     commissioning: facilityMw * 0.2e6,
   };
+  if (M && M.solarHa > 0 && mix.solar > 0) {
+    const existingMw = M.solarHa / SOURCES.solar.landHaPerMw, neededMw = facilityMw * mix.solar, credit = Math.min(existingMw, neededMw);
+    capexBreakdown["power supply"] = Math.max(0, capexBreakdown["power supply"] - credit * SOURCES.solar.capexPerMw);
+    assumptions.push(`${M.solarHa.toFixed(0)} ha of solar already on site, about ${existingMw.toFixed(0)} MW, offsets ${credit.toFixed(0)} MW of new supply capex (${M.by})`);
+  }
   const capexUsd = Object.values(capexBreakdown).reduce((a, b) => a + b, 0);
   const laborMo = people * r.wageUsdH * 170 * (laborShortfall > 0 ? 1.15 : 1) + spec.crew * robots * 2500;
   const constructionLaborUsd = laborMo * monthsToLive;
@@ -131,13 +143,17 @@ export function estimate(spec: SiteSpec, r: RegionFactors, mixIn: Partial<Energy
   const coolingWater = D.cooling === "air" ? 1.9 : 0.6; // L per kWh of IT load, evaporative vs liquid
   const sourceWater = (Object.keys(mix) as EnergySource[]).reduce((a, k) => a + mix[k] * SOURCES[k].waterLKwh, 0);
   const waterM3Yr = (itMw * HOURS * 1000 * coolingWater + mwh * 1000 * sourceWater) / 1000;
-  const waterStressFlag = r.waterStress === "high" && coolingWater > 1;
+  const waterNear = !!M && M.waterNearM != null && M.waterNearM < 1500 && M.waterHa >= 2;
+  const waterStressEff: RegionFactors["waterStress"] = waterNear && r.waterStress === "high" ? "medium" : waterNear && r.waterStress === "medium" ? "low" : r.waterStress;
+  if (waterNear) flags.push(`${M!.waterHa.toFixed(0)} ha of surface water measured ${Math.round(M!.waterNearM!)} m from the site; cooling make-up supply is plausible (${M!.by}).`);
+  else if (M && r.waterStress !== "low") flags.push(`No surface water measured within ${(M.spanM / 2000).toFixed(1)} km of the site; cooling water depends on municipal or well supply (${M.by}).`);
+  const waterStressFlag = waterStressEff === "high" && coolingWater > 1;
   if (waterStressFlag) flags.push("Evaporative cooling in a water-stressed basin.");
   const gridLoadShare = mix.grid * facilityMw / Math.max(1, r.gridHeadroomMw);
   if (gridLoadShare > 0.5) flags.push(`Grid draw is ${Math.round(gridLoadShare * 100)}% of regional headroom; rate impacts for other customers are likely.`);
-  const landUseScore = clamp(100 - landHa / facilityMw * 25, 0, 100);
+  const landUseScore = clamp(100 - landHa / facilityMw * 25 - (M && landHa > M.openHa ? 20 : 0), 0, 100);
   const carbonScore = clamp(100 - carbonIntensityG / 6.5, 0, 100);
-  const waterScore = clamp(100 - (waterM3Yr / (facilityMw * 1000)) * (r.waterStress === "high" ? 40 : r.waterStress === "medium" ? 18 : 8), 0, 100);
+  const waterScore = clamp(100 - (waterM3Yr / (facilityMw * 1000)) * (waterStressEff === "high" ? 40 : waterStressEff === "medium" ? 18 : 8), 0, 100);
   const gridScore = clamp(100 - gridLoadShare * 110, 0, 100);
   const environmentScore = Math.round(0.45 * carbonScore + 0.25 * waterScore + 0.2 * gridScore + 0.1 * landUseScore);
 

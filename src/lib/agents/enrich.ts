@@ -7,6 +7,7 @@ import { startRun } from "./runs";
 import { EnrichOutput, type EnrichOutputT } from "./schemas";
 import { fixtureEnrich } from "./fixtures";
 import { ensureProfile, reestimateSite } from "../sites";
+import { measureSite } from "../vision/sam";
 
 const LIVE = () => env.agentMode === "live";
 
@@ -52,6 +53,16 @@ export async function runEnrich(siteId: string) {
     if (out.moratorium) patch.sentiment = Math.min(Number(patch.sentiment ?? profile.sentiment), 25);
     const sources = out.sourceIds.map((i) => sourceList[i - 1]).filter(Boolean);
     await prisma.regionProfile.update({ where: { siteId }, data: { ...patch, enrichedBy: LIVE() ? run.id : null, sources: sources as unknown as Prisma.InputJsonValue } });
+    // the SAM moment: look at the site and measure its land, water and solar instead of trusting priors
+    if (LIVE() && env.meta.key) {
+      try {
+        await run.log("measuring the site with SAM 3.1 over satellite imagery");
+        const m = await measureSite(site.lat, site.lon);
+        await prisma.regionProfile.update({ where: { siteId }, data: { measuredBuiltHa: m.summary.builtHa, measuredOpenHa: m.summary.openHa, measuredWaterHa: m.summary.waterHa, measuredWaterNearM: m.summary.waterNearM, measuredSolarHa: m.summary.solarHa, measuredSpanM: m.spanM, measuredBy: m.model, measuredAt: new Date(), sources: [...sources, { title: `${m.model} segmentation of Esri World Imagery`, url: "https://dev.meta.ai/docs/sam/overview" }] as unknown as Prisma.InputJsonValue } });
+        patch.measured = m.summary;
+        await run.log(`measured ${m.summary.openHa.toFixed(0)} ha open land, ${m.summary.builtHa.toFixed(0)} ha built, ${m.summary.waterHa.toFixed(0)} ha water, ${m.summary.solarHa.toFixed(0)} ha solar in ${(m.tookMs / 1000).toFixed(0)} s`);
+      } catch (err) { await run.log(`SAM measurement skipped: ${err instanceof Error ? err.message : String(err)}`); }
+    }
     await reestimateSite(siteId);
     await run.log("profile updated and scenarios re-estimated");
     await run.succeed({ patched: Object.keys(patch), notes: out.notes, moratorium: out.moratorium } as unknown as Prisma.InputJsonValue, usage);

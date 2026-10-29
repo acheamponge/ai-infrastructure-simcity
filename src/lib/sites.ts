@@ -5,8 +5,10 @@ import { estimate } from "./model/estimate";
 import { normalizeMix } from "./model/energy";
 import type { EnergyMix, RegionFactors, SiteSpec } from "./model/types";
 
-export function profileToFactors(p: { powerPriceKwh: number; gridCarbonG: number; gridLeadMonths: number; gridHeadroomMw: number; gridReliability: number; laborPool: number; wageUsdH: number; landIndex: number; sentiment: number; climate: string; waterStress: string; solar: number; wind: number; geothermal: boolean; flareGas: boolean; populationNear: number | null }): RegionFactors {
-  return { ...p, climate: p.climate as RegionFactors["climate"], waterStress: p.waterStress as RegionFactors["waterStress"] };
+type ProfileLike = { powerPriceKwh: number; gridCarbonG: number; gridLeadMonths: number; gridHeadroomMw: number; gridReliability: number; laborPool: number; wageUsdH: number; landIndex: number; sentiment: number; climate: string; waterStress: string; solar: number; wind: number; geothermal: boolean; flareGas: boolean; populationNear: number | null; measuredBuiltHa?: number | null; measuredOpenHa?: number | null; measuredWaterHa?: number | null; measuredWaterNearM?: number | null; measuredSolarHa?: number | null; measuredSpanM?: number | null; measuredBy?: string | null };
+export function profileToFactors(p: ProfileLike): RegionFactors {
+  const measured = p.measuredBy && p.measuredOpenHa != null ? { builtHa: p.measuredBuiltHa ?? 0, openHa: p.measuredOpenHa, waterHa: p.measuredWaterHa ?? 0, waterNearM: p.measuredWaterNearM ?? null, solarHa: p.measuredSolarHa ?? 0, spanM: p.measuredSpanM ?? 1400, by: p.measuredBy } : null;
+  return { powerPriceKwh: p.powerPriceKwh, gridCarbonG: p.gridCarbonG, gridLeadMonths: p.gridLeadMonths, gridHeadroomMw: p.gridHeadroomMw, gridReliability: p.gridReliability, laborPool: p.laborPool, wageUsdH: p.wageUsdH, landIndex: p.landIndex, sentiment: p.sentiment, climate: p.climate as RegionFactors["climate"], waterStress: p.waterStress as RegionFactors["waterStress"], solar: p.solar, wind: p.wind, geothermal: p.geothermal, flareGas: p.flareGas, populationNear: p.populationNear, measured };
 }
 
 /** Infer a plausible energy mix from free-text supply notes. */

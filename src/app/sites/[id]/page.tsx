@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { ensureBaseline, ensureProfile } from "@/lib/sites";
 import { EnergyMixer } from "@/components/energy-mixer";
-import { FootprintCheck } from "@/components/footprint-check";
+import { SiteMeasure } from "@/components/site-measure";
 import { RunButton } from "@/components/run-button";
 import { AlternativesChart, CapexChart } from "@/components/charts";
 import { SiteMapLoader } from "@/components/site-map-loader";
@@ -109,8 +109,8 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
       </section>
 
       <section>
-        <SectionTitle>Footprint check <span className="pill ml-2">SAM 3.1</span></SectionTitle>
-        <div className="card p-4"><FootprintCheck siteId={site.id} capacityMw={site.capacityMw} /></div>
+        <SectionTitle>Site measurement <span className="pill ml-2">SAM 3.1</span></SectionTitle>
+        <div className="card p-4"><SiteMeasure siteId={site.id} capacityMw={site.capacityMw} measured={profile.measuredBy ? { builtHa: profile.measuredBuiltHa ?? 0, openHa: profile.measuredOpenHa ?? 0, waterHa: profile.measuredWaterHa ?? 0, waterNearM: profile.measuredWaterNearM ?? null, solarHa: profile.measuredSolarHa ?? 0, spanM: profile.measuredSpanM ?? 1400, by: profile.measuredBy, at: profile.measuredAt?.toISOString() ?? null } : null} /></div>
       </section>
 
       <section className="grid lg:grid-cols-[1fr_1fr] gap-5">
@@ -122,6 +122,14 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
               ["Construction trades", `${num(profile.laborPool)} @ $${profile.wageUsdH}/h`], ["Land index", `${profile.landIndex.toFixed(2)}×`], ["Sentiment", `${num(profile.sentiment)} / 100`], ["Climate · water", `${profile.climate} · ${profile.waterStress} stress`], ["Solar · wind", `${profile.solar.toFixed(2)} · ${profile.wind.toFixed(2)}`], ["Geothermal · flare gas", `${profile.geothermal ? "yes" : "no"} · ${profile.flareGas ? "yes" : "no"}`], ["People within 5 km", profile.populationNear ? num(profile.populationNear) : "unknown"],
             ] as const).map(([k, v]) => <tr key={k}><td className="text-slate-2">{k}</td><td className="r">{v}</td></tr>)}
           </tbody></table>
+          {profile.measuredBy && (
+            <table className="table mt-3"><thead><tr><th>Measured by {profile.measuredBy} <span className="pill pill-go ml-1">measured</span></th><th className="r">replaces</th></tr></thead><tbody>
+              <tr><td className="text-slate-2">Open, buildable land: <b className="text-slate-1">{num(profile.measuredOpenHa ?? 0)} ha</b></td><td className="r">land index {profile.landIndex.toFixed(2)}× prior</td></tr>
+              <tr><td className="text-slate-2">Surface water: <b className="text-slate-1">{num(profile.measuredWaterHa ?? 0)} ha{profile.measuredWaterNearM != null ? `, ${num(profile.measuredWaterNearM)} m away` : ""}</b></td><td className="r">{profile.waterStress} water stress prior</td></tr>
+              <tr><td className="text-slate-2">Existing solar arrays: <b className="text-slate-1">{num(profile.measuredSolarHa ?? 0)} ha</b></td><td className="r">solar resource {profile.solar.toFixed(2)} prior</td></tr>
+              <tr><td className="text-slate-2">Built footprint: <b className="text-slate-1">{num(profile.measuredBuiltHa ?? 0)} ha</b></td><td className="r">{site.capacityMw ? `${num(site.capacityMw)} MW reported` : "capacity unknown"}</td></tr>
+            </tbody></table>
+          )}
           {profileSources.length > 0 && <div className="text-xs mt-2 flex flex-wrap gap-x-3 gap-y-1">{profileSources.slice(0, 8).map((s) => <a key={s.url} href={s.url} target="_blank" rel="noreferrer" className="text-accent hover:underline">{s.title}</a>)}</div>}
         </div>
         <div className="card p-4">

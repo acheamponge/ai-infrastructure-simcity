@@ -31,6 +31,18 @@ export interface RegionFactors {
   geothermal: boolean;
   flareGas: boolean;
   populationNear?: number | null;
+  /** Measured from satellite imagery (SAM 3.1); replaces the land and water priors when present. */
+  measured?: SiteMeasured | null;
+}
+
+export interface SiteMeasured {
+  builtHa: number;       // existing building footprint in the view
+  openHa: number;        // open, buildable land in the view
+  waterHa: number;       // surface water in the view
+  waterNearM: number | null; // distance from the site point to the nearest water, metres
+  solarHa: number;       // existing solar arrays in the view
+  spanM: number;         // side of the square view, metres
+  by: string;            // model id
 }
 
 export interface EstimateResult {

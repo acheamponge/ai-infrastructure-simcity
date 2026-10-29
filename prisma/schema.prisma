@@ -83,6 +83,15 @@ model RegionProfile {
   geothermal     Boolean  @default(false)
   flareGas       Boolean  @default(false)
   populationNear Int?     // people within 5 km, for nuisance weighting
+  // measured from satellite imagery by SAM 3.1; null until a site is measured
+  measuredBuiltHa    Float?
+  measuredOpenHa     Float?
+  measuredWaterHa    Float?
+  measuredWaterNearM Float?
+  measuredSolarHa    Float?
+  measuredSpanM      Float?
+  measuredBy         String?
+  measuredAt         DateTime?
   sources        Json     @default("[]")
   enrichedBy     String?  // run id, null when priors only
   updatedAt      DateTime @updatedAt
