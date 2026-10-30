@@ -1,7 +1,11 @@
 # AI Infrastructure SimCity
 
 A playable world for siting AI data centers, backed by a live registry and a
-set of research and advisory agents.
+set of research and advisory agents, built on Muse by Meta.
+
+![A site dossier: Muse Wonder's verdict, the SAM 3.1 overlay and the Muse Image concept render](docs/hero.gif)
+
+Live at [ai-infrastructure-simcity-dev-rel-eng.vercel.app](https://ai-infrastructure-simcity-dev-rel-eng.vercel.app).
 
 - **Simulation** (`/`): spin the globe, pick any of the modeled regions or any
   tracked real site (amber diamonds), spec a facility with a GPU fleet mix
@@ -36,7 +40,7 @@ Four Meta models do distinct jobs. Set `MODEL_API_KEY_MUSE` and all of them are 
 |---|---|---|
 | **Muse Spark** | Research and extraction for discovery and enrichment, the chat planner, and web search through search grounding (Tavily is the backup) | `src/lib/agents/research.ts`, `discover.ts`, `enrich.ts`, `planner.ts`, `src/lib/search/grounded.ts` |
 | **Muse Wonder** | The final word: reads the engine's verdict and Spark's findings and writes the rationale, conditions, risks and the build plan | `src/lib/agents/assess.ts` |
-| **SAM 3.1** | Measures a site from satellite imagery, buildings, open land, water and solar, and feeds the hectares into the estimate | `src/lib/vision/sam.ts`, `/api/vision/measure` |
+| **SAM 3.1** | Measures a site from satellite imagery, buildings, open land, water and solar, and feeds the hectares into the estimate. Measures what the basemap shows: tiles often trail construction, so the figures are most trustworthy for proposed sites (see the methodology page for the Abilene check) | `src/lib/vision/sam.ts`, `/api/vision/measure` |
 | **Muse Image** | A photoreal concept render of the facility the spec describes, in the landscape SAM measured | `src/lib/vision/render.ts`, `/api/vision/render` |
 
 Spark gathers, Wonder decides, SAM looks, Image shows.
@@ -60,13 +64,16 @@ npm run db:seed
 npm run dev
 ```
 
-Copy `env.example` to `.env` and set `CRUSOE_API_KEY` and `TAVILY_API_KEY` to
-put the agents in live mode. Model hints (`kimi`, `glm`) are resolved against
-the endpoint's `/v1/models` list at first use; set exact ids with
-`CRUSOE_MODEL_RESEARCH` and `CRUSOE_MODEL_ADVISOR` if you prefer. Without the
-keys the app runs in **fixture mode**: discovery returns sample records,
-enrichment keeps country priors, and the advisor writes a templated narrative
-and plan around the deterministic verdict. The header shows which mode is on.
+Copy `env.example` to `.env` and set `MODEL_API_KEY_MUSE` (a Meta Model API
+key) and `TAVILY_API_KEY` to put the agents in live mode on Muse. Search
+grounding runs the web searches on Spark; Tavily is the backup engine. Setting
+`CRUSOE_API_KEY` as well gives the agents a fallback provider, and
+`LLM_PROVIDER=crusoe` makes Crusoe primary; its model hints (`kimi`, `glm`) are
+resolved against the endpoint's `/v1/models` list at first use. Without any
+inference key the app runs in **fixture mode**: discovery returns sample
+records, enrichment keeps country priors, and the advisor writes a templated
+narrative and plan around the deterministic verdict. The header shows which
+mode and which model are on, and `/api/agents/health` reports both providers.
 
 `DATABASE_URL` defaults to the Docker container above when unset.
 

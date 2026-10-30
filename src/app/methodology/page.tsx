@@ -44,6 +44,11 @@ export default function Methodology() {
         <h2 className="font-semibold text-[15px] mb-2">Data provenance</h2>
         <p>Curated sites are entered from public reporting with the operator's own announcements as the primary source; their figures are approximate and marked with a confidence below 0.8. Discovered sites carry the URLs the agent relied on. Region profiles start from country priors (and US state overrides) and are replaced by sourced values when the enrich agent runs; the profile card on each site page states which it is. Nothing here constitutes engineering, legal or investment advice.</p>
       </section>
+      <section className="card p-5 text-sm leading-relaxed space-y-3">
+        <h2 className="font-semibold text-[15px]">What the satellite can and cannot tell you</h2>
+        <p>SAM 3.1 segments buildings, surface water, solar arrays and open land in a 1.4 km view of Esri World Imagery centred on the site, and the hectares it finds replace the land, water and solar priors in the estimate. The segmentation is good; the picture is the limit. The basemap is a mosaic whose capture date is not exposed per tile and often trails construction by a year or more, so a campus built since the tile was captured reads as the fields that were there before it.</p>
+        <p>Checked against a known figure: the first two Stargate halls in Abilene total about 980,000 square feet, roughly 9 hectares of roof. SAM measured 1.3 hectares of buildings and 9.2 hectares of open land on that view, which is the pre-construction site. Measurements are therefore most trustworthy for proposed and planned sites, which is where the siting question is live, and should be read as a snapshot of the imagery date for operational ones. Every measured dossier shows the overlay so the imagery vintage can be judged by eye.</p>
+      </section>
     </div>
   );
 }
