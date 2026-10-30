@@ -64,7 +64,7 @@ export function SiteMeasure({ siteId, capacityMw, measured, stored }: { siteId: 
           <div className="relative rounded-lg overflow-hidden border border-line bg-black" style={{ aspectRatio: `${view.width} / ${view.height}` }}>
             <img src={view.image} alt="Satellite view of the site" className="absolute inset-0 w-full h-full object-cover" />
             <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${view.width} ${view.height}`} preserveAspectRatio="none">
-              {view.layers.filter((l) => show[l.key]).map((l) => l.objects.map((o) => o.path && <g key={`${l.key}-${o.id}`} transform={`translate(${o.offset.x} ${o.offset.y})`}><path d={o.path} fill={l.color + "66"} stroke={l.color} strokeWidth={1.2} vectorEffect="non-scaling-stroke"><title suppressHydrationWarning>{l.label} · {fmt(o.areaM2 / 1e4, 1)} ha</title></path></g>))}
+              {view.layers.filter((l) => show[l.key]).map((l) => l.objects.map((o) => o.path && <g key={`${l.key}-${o.id}`} transform={`translate(${o.offset.x} ${o.offset.y})`}><path d={o.path} fill={l.color + "66"} stroke={l.color} strokeWidth={1.2} vectorEffect="non-scaling-stroke"><title dangerouslySetInnerHTML={{ __html: `${l.label} · ${fmt(o.areaM2 / 1e4, 1)} ha` }} /></path></g>))}
               <circle cx={view.width / 2} cy={view.height / 2} r={6} fill="none" stroke="#fff" strokeWidth={2} vectorEffect="non-scaling-stroke" />
             </svg>
             <div className="absolute bottom-1 right-2 text-[9px] text-white/70">{view.attribution}</div>

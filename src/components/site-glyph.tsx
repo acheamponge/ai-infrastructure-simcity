@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 /** An isometric glyph of the facility the simulation would build: hall with rack rows, towers, generators, substation.
- *  Drawn from the spec so every dossier carries a picture of its own site; the link opens the real 3D view. */
+ *  Drawn from the spec so every dossier carries a picture of its own site; the link breaks ground on it in the simulation, which opens the 3D site view. */
 export function SiteGlyph({ siteId, racks, facilityMw, live, label }: { siteId: string; racks: number; facilityMw: number; live: boolean; label?: string }) {
   const cols = Math.min(40, Math.ceil(Math.sqrt(racks * 2.2))), rows = Math.max(1, Math.ceil(racks / cols));
   const towers = Math.min(8, Math.max(2, Math.ceil(facilityMw / 14))), gens = Math.min(10, Math.max(2, Math.ceil(facilityMw / 40)));
@@ -14,7 +14,7 @@ export function SiteGlyph({ siteId, racks, facilityMw, live, label }: { siteId: 
   };
   const accent = live ? "#3fd8c6" : "#f0b443";
   return (
-    <Link href={`/?site=${siteId}`} className="group block card card-hover overflow-hidden" aria-label="Open this site in the simulation">
+    <Link href={`/?site=${siteId}&build=1`} className="group block card card-hover overflow-hidden" aria-label="Open this site in the 3D simulation">
       <svg viewBox="0 0 300 190" className="w-full h-auto block" role="img">
         <defs><radialGradient id="pad" cx="50%" cy="45%" r="60%"><stop offset="0" stopColor="#1b2a22" /><stop offset="1" stopColor="#0d141a" /></radialGradient></defs>
         <rect width="300" height="190" fill="url(#pad)" />
