@@ -6,7 +6,7 @@ import { research } from "./research";
 import { startRun } from "./runs";
 import { DiscoveryOutput, type DiscoveredSiteT } from "./schemas";
 import { fixtureDiscovery } from "./fixtures";
-import { ensureBaseline, ensureProfile } from "../sites";
+import { ensureBaseline, ensureProfile, findExistingSite } from "../sites";
 
 const LIVE = () => env.agentMode === "live";
 
@@ -35,7 +35,9 @@ export async function runDiscovery(query: string, limit = 12) {
     const created: string[] = [];
     const updated: string[] = [];
     for (const s of found.slice(0, limit)) {
-      const existing = await prisma.site.findFirst({ where: { name: { equals: s.name, mode: "insensitive" }, country: s.country } });
+      const match = await findExistingSite(s);
+      const existing = match?.site ?? null;
+      if (match && match.reason !== "same name") await run.log(`"${s.name}" is already tracked as "${match.site.name}" (${match.reason})`);
       const sources = s.sourceIds.map((i) => sourceList[i - 1]).filter(Boolean);
       const data = {
         name: s.name, operator: s.operator, country: s.country, region: s.region, city: s.city, lat: s.lat, lon: s.lon, status: s.status,

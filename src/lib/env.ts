@@ -38,7 +38,7 @@ export type LlmProvider = "meta" | "crusoe";
 
 export const env = {
   databaseUrl: get("DATABASE_URL") ?? "postgresql://atlas:atlas@localhost:5433/atlas?schema=public",
-  /** Meta Model API (Muse Spark, Muse Wonder, SAM 3.1). OpenAI-compatible chat completions plus the Responses API for SAM. */
+  /** Meta Model API: Muse Spark, Muse Wonder, SAM 3.1 and Muse Image. Chat completions, the Responses API for SAM and search grounding, and image generation. */
   meta: {
     key: get("MODEL_API_KEY_MUSE") ?? "",
     baseUrl: (get("META_BASE_URL") ?? "https://api.meta.ai/v1").replace(/\/+$/, ""),

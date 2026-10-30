@@ -30,7 +30,7 @@ variable the app reads.
    | Variable | Value |
    | --- | --- |
    | `DATABASE_URL` | the Neon connection string |
-   | `MODEL_API_KEY_MUSE` | your Meta Model API key (Muse Spark, Muse Wonder, SAM 3.1); when set, Muse is the primary provider |
+   | `MODEL_API_KEY_MUSE` | your Meta Model API key (Muse Spark, Muse Wonder, SAM 3.1, Muse Image); when set, Muse is the primary provider |
    | `CRUSOE_API_KEY` | your Crusoe inference key |
    | `CRUSOE_BASE_URL` | `https://api.inference.crusoecloud.com/v1` |
    | `CRUSOE_MODEL_RESEARCH` | `kimi` |

@@ -13,7 +13,15 @@ import type { EnergyMix, EstimateResult, RegionFactors, SiteSpec } from "../mode
 
 const LIVE = () => env.agentMode === "live";
 
-const SYSTEM = `You advise executives, government officials and investors on whether a specific AI data center should be built, and how. You are given the engine's estimate for the proposal, the alternatives it searched, the deterministic verdict and the floors applied, and a draft build plan. Explain the verdict plainly, name the conditions that would change it, state the risks honestly, write one short paragraph per audience, and refine the build plan so that it is concrete: supply mix, hardware, crew and automation, phasing, and the community commitments that keep the community score above its floor. Do not change the verdict. Do not invent numbers that are not in the inputs. Keep the plan's energy mix within the alternatives that were shown to be viable when any exist.`;
+const SYSTEM = `You advise executives, government officials and investors on whether a specific AI data center should be built, and how. You are given the engine's estimate for the proposal, the alternatives it searched, the deterministic verdict and the floors applied, and a draft build plan. Write numbers the way an analyst says them: whole percentages (12% IRR, not 0.1218), money in $M or $B, emissions in kt or Mt, and never paste raw decimals from the brief. Explain the verdict plainly, name the conditions that would change it, state the risks honestly, write one short paragraph per audience, and refine the build plan so that it is concrete: supply mix, hardware, crew and automation, phasing, and the community commitments that keep the community score above its floor. Do not change the verdict. Do not invent numbers that are not in the inputs. Keep the plan's energy mix within the alternatives that were shown to be viable when any exist.`;
+
+/** Rounds every number in a brief so the advisory reads like an analyst wrote it: 3 significant digits below 100, whole numbers above. */
+function roundDeep<T>(v: T): T {
+  if (typeof v === "number") return (!isFinite(v) ? v : Math.abs(v) >= 100 ? Math.round(v) : +v.toPrecision(3)) as T;
+  if (Array.isArray(v)) return v.map(roundDeep) as T;
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, roundDeep(x)])) as T;
+  return v;
+}
 
 /** Deterministic gate. The model explains it but never overrides it. */
 export function gate(e: EstimateResult, alternatives: ReturnType<typeof searchMixes>): { verdict: Verdict; bestAlt: ReturnType<typeof searchMixes>[number] | null } {
@@ -76,7 +84,7 @@ export async function runAssessment(scenarioId: string) {
         profile: Object.fromEntries(Object.entries(profile).filter(([k, v]) => k !== "sources" && k !== "measuredLayers" && !(typeof v === "string" && v.length > 2000))),
       };
       await run.log(`verdict fixed by the engine; asking ${env.llmProvider === "meta" ? env.meta.modelAdvisor : env.modelAdvisor} for the rationale, conditions and plan (research ran on ${env.llmProvider === "meta" ? env.meta.modelResearch : env.modelResearch})`);
-      const x = await structured("advisor", AdvisorOutput, SYSTEM, `Write the advisory for this brief.\n\n${JSON.stringify(brief, null, 1)}`, { maxTokens: 6000 });
+      const x = await structured("advisor", AdvisorOutput, SYSTEM, `Write the advisory for this brief.\n\n${JSON.stringify(roundDeep(brief), null, 1)}`, { maxTokens: 6000 });
       await run.log(`advisory written by ${x.usage.model} in ${x.usage.tokensOut} output tokens, ${x.usage.attempts} attempt(s); brief ${JSON.stringify(brief).length} chars; usage ${JSON.stringify(x.usage.raw)}`);
       usage.model = x.usage.model; usage.tokensIn = x.usage.tokensIn; usage.tokensOut = x.usage.tokensOut;
       out = x.data;

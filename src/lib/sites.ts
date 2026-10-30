@@ -60,3 +60,38 @@ export async function reestimateSite(siteId: string) {
     await prisma.scenario.update({ where: { id: s.id }, data: { estimate: result as unknown as Prisma.InputJsonValue } });
   }
 }
+
+// ---- discovery dedupe ----------------------------------------------------------------------------------------------
+// A discovered record is the same facility as a tracked one when the names reduce to the same key in the same country,
+// or when it sits within 25 km of a site by the same operator or with the same distinctive name words. Coordinates alone
+// never merge two records, because discovery often reports a city's coordinates for several distinct campuses.
+const GENERIC = new Set(["data", "center", "centre", "centers", "centres", "datacenter", "datacenters", "campus", "cluster", "ai", "project", "hyperscale", "facility", "site", "park", "tech", "technology", "the", "of", "and", "at", "in", "phase", "new", "region", "zone"]);
+const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const words = (s: string) => fold(s).replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w && !GENERIC.has(w));
+export const siteKey = (name: string) => words(name).sort().join(" ");
+const operatorKey = (s: string) => fold(s).replace(/\b(inc|llc|ltd|corp|corporation|company|co|plc|sa|ag|gmbh)\b/g, "").replace(/[^a-z0-9]/g, "");
+export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const r = Math.PI / 180, a = Math.sin(((lat2 - lat1) * r) / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(((lon2 - lon1) * r) / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export type SiteMatch = { site: Site; reason: string } | null;
+
+export async function findExistingSite(s: { name: string; operator: string | null; country: string; lat: number; lon: number }): Promise<SiteMatch> {
+  const candidates = await prisma.site.findMany({ where: { country: { equals: s.country, mode: "insensitive" } } });
+  const key = siteKey(s.name);
+  const byName = key ? candidates.find((c) => siteKey(c.name) === key) : undefined;
+  if (byName) return { site: byName, reason: "same name" };
+  const mine = new Set(words(s.name));
+  let best: { site: Site; reason: string; km: number } | null = null;
+  for (const c of candidates) {
+    const km = haversineKm(s.lat, s.lon, c.lat, c.lon);
+    if (km > 25) continue;
+    const theirs = words(c.name);
+    const overlap = theirs.length && mine.size ? theirs.filter((w) => mine.has(w)).length / Math.min(theirs.length, mine.size) : 0;
+    const sameOperator = !!(s.operator && c.operator && operatorKey(s.operator) === operatorKey(c.operator));
+    const reason = sameOperator ? `same operator ${km.toFixed(0)} km away` : overlap >= 0.5 ? `name shares "${theirs.filter((w) => mine.has(w)).join(" ")}" ${km.toFixed(0)} km away` : null;
+    if (reason && (!best || km < best.km)) best = { site: c, reason, km };
+  }
+  return best ? { site: best.site, reason: best.reason } : null;
+}
