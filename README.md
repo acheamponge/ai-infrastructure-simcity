@@ -5,7 +5,8 @@ set of research and advisory agents, built on Muse by Meta.
 
 ![A site dossier: Muse Wonder's verdict, the SAM 3.1 overlay and the Muse Image concept render](docs/hero.gif)
 
-Live at [ai-infrastructure-simcity-dev-rel-eng.vercel.app](https://ai-infrastructure-simcity-dev-rel-eng.vercel.app).
+**[Try it live →](https://ai-infrastructure-simcity-dev-rel-eng.vercel.app)** No sign-in. Spin the globe,
+ask the planner for a site, or open any dossier in the [atlas](https://ai-infrastructure-simcity-dev-rel-eng.vercel.app/atlas).
 
 - **Simulation** (`/`): spin the globe, pick any of the modeled regions or any
   tracked real site (amber diamonds), spec a facility with a GPU fleet mix
