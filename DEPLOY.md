@@ -24,7 +24,10 @@ variable the app reads.
 1. On [vercel.com/new](https://vercel.com/new) import the GitHub repository. Framework is
    detected as Next.js; leave the build settings alone. The `vercel-build` script in
    `package.json` runs `prisma migrate deploy` and then `next build`, so the schema is
-   applied on every deploy.
+   applied on every deploy. The migrate step runs with Prisma's advisory lock disabled:
+   through Neon's connection pooler the lock times out (error P1002) whenever two
+   builds, such as a Production and a Preview deploy from one push, hit the database
+   at once. Migrations are idempotent, so a second build finds nothing left to apply.
 2. Under **Environment Variables** add, for Production and Preview:
 
    | Variable | Value |

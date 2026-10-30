@@ -15,7 +15,7 @@
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
     "db:deploy": "prisma migrate deploy",
-    "vercel-build": "prisma migrate deploy && next build"
+    "vercel-build": "PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 prisma migrate deploy && next build"
   },
   "dependencies": {
     "@meta-sam/parser": "^0.1.0",
