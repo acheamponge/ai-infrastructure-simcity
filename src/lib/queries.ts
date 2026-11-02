@@ -25,12 +25,14 @@ export async function siteRows(): Promise<SiteRow[]> {
 }
 
 export async function headline() {
-  const [sites, assessments, runs] = await Promise.all([
+  const [sites, baselines, runs] = await Promise.all([
     prisma.site.groupBy({ by: ["status"], _count: { _all: true }, _sum: { capacityMw: true } }),
-    prisma.assessment.groupBy({ by: ["verdict"], _count: { _all: true } }),
+    // One row per site: its baseline scenario with only the latest assessment, so a re-assessed site counts once.
+    prisma.scenario.findMany({ where: { isBaseline: true }, select: { assessments: { orderBy: { createdAt: "desc" }, take: 1, select: { verdict: true } } } }),
     prisma.agentRun.count(),
   ]);
   const byStatus = Object.fromEntries(sites.map((s) => [s.status, { count: s._count._all, mw: s._sum.capacityMw ?? 0 }]));
-  const byVerdict = Object.fromEntries(assessments.map((a) => [a.verdict, a._count._all]));
+  const byVerdict: Record<string, number> = {};
+  for (const b of baselines) { const v = b.assessments[0]?.verdict; if (v) byVerdict[v] = (byVerdict[v] ?? 0) + 1; }
   return { byStatus, byVerdict, runs, totalSites: sites.reduce((a, s) => a + s._count._all, 0), totalMw: sites.reduce((a, s) => a + (s._sum.capacityMw ?? 0), 0) };
 }

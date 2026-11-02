@@ -10,10 +10,11 @@ export function AgentConsole({ mode }: { mode: "live" | "fixture" }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [runs, setRuns] = useState<Run[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const router = useRouter();
 
-  async function load() { const r = await fetch("/api/runs?limit=40", { cache: "no-store" }); setRuns(await r.json()); }
+  async function load() { const r = await fetch("/api/runs?limit=40", { cache: "no-store" }); setRuns(await r.json()); setLoaded(true); }
   useEffect(() => { load(); const t = setInterval(load, 4000); return () => clearInterval(t); }, []);
 
   async function discover() {
@@ -52,7 +53,8 @@ export function AgentConsole({ mode }: { mode: "live" | "fixture" }) {
             {runs.map((r) => (
               <RunRow key={r.id} r={r} open={open === r.id} toggle={() => setOpen(open === r.id ? null : r.id)} />
             ))}
-            {runs.length === 0 && <tr><td colSpan={6} className="text-center text-slate-2 py-8"><div className="font-medium text-slate-1">No runs yet</div><div className="text-xs mt-1">Run a discovery above, or open any site and press Assess. Each run appears here with its model, sources and token use.</div></td></tr>}
+            {!loaded && runs.length === 0 && <tr><td colSpan={6} className="text-center text-slate-2 py-8">Loading runs…</td></tr>}
+            {loaded && runs.length === 0 && <tr><td colSpan={6} className="text-center text-slate-2 py-8"><div className="font-medium text-slate-1">No runs yet</div><div className="text-xs mt-1">Run a discovery above, or open any site and press Assess. Each run appears here with its model, sources and token use.</div></td></tr>}
           </tbody>
         </table>
       </div>

@@ -7,9 +7,14 @@ import { money, num } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function Overview() {
-  const [h, rows, runs] = await Promise.all([headline(), siteRows(), prisma.agentRun.findMany({ where: { status: "SUCCEEDED" }, orderBy: { startedAt: "desc" }, take: 60 })]);
-  const dayAgo = Date.now() - 86400e3; const recentRuns = runs.filter((r) => r.startedAt.getTime() > dayAgo);
-  const countKind = (k: string) => recentRuns.filter((r) => r.kind === k).length;
+  const dayAgo = new Date(Date.now() - 86400e3);
+  const [h, rows, lastRun, recentByKind] = await Promise.all([
+    headline(), siteRows(),
+    prisma.agentRun.findFirst({ where: { status: "SUCCEEDED" }, orderBy: { startedAt: "desc" }, select: { startedAt: true, model: true } }),
+    // Count every succeeded run in the window in the database, so a busy day is not capped at the newest N rows.
+    prisma.agentRun.groupBy({ by: ["kind"], where: { status: "SUCCEEDED", startedAt: { gt: dayAgo } }, _count: { _all: true } }),
+  ]);
+  const countKind = (k: string) => recentByKind.find((r) => r.kind === k)?._count._all ?? 0;
   const recent = rows.slice().sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()).slice(0, 8);
   const personas = [
     { href: "/executive", title: "Executive", lede: "Where to build next, what it costs, how long until first revenue, and which sites the advisor would not sign off on.", items: ["Portfolio capex and payback", "Critical path by site", "Open conditions"] },
@@ -34,13 +39,13 @@ export default async function Overview() {
           <Kpi label="Verdicts" value={`${h.byVerdict.GO ?? 0} / ${h.byVerdict.CONDITIONAL ?? 0} / ${h.byVerdict.NO_GO ?? 0}`} sub="go / conditional / no go" />
         </div>
       </section>
-      {runs[0] && (
+      {lastRun && (
         <section className="card px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px] rise rise-2">
           <span className="eyebrow eyebrow-dot">What changed in the last 24 h</span>
           <span><b className="num text-slate-1">{countKind("ASSESS")}</b> <span className="text-slate-2">verdicts written</span></span>
           <span><b className="num text-slate-1">{countKind("ENRICH")}</b> <span className="text-slate-2">sites enriched and measured</span></span>
           <span><b className="num text-slate-1">{countKind("DISCOVER")}</b> <span className="text-slate-2">discovery runs</span></span>
-          <span className="text-slate-3 ml-auto">last run {runs[0].startedAt.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} on <span className="text-violet">{runs[0].model}</span> · <Link href="/agents" className="text-accent hover:underline">run log</Link></span>
+          <span className="text-slate-3 ml-auto">last run {lastRun.startedAt.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} on <span className="text-violet">{lastRun.model}</span> · <Link href="/agents" className="text-accent hover:underline">run log</Link></span>
         </section>
       )}
       <section className="grid md:grid-cols-3 gap-4 rise rise-3">
